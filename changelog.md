@@ -22,3 +22,5 @@ Version | Changelog
 ## Future plans:
 - [ ] Web GUI (django?)
 - [ ] [New API migration](https://onlinehelp.opswat.com/mdcloud/6.1_V4_Migration_guide.html)
+- [ ] Fix exclude logic
+- [ ] API key encryption? (hash + pass)
