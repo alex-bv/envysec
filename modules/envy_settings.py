@@ -145,7 +145,7 @@ class Envyronment_Settings():
             }
 
             # Reverse is used to prevent prior path rewrite;
-            for i in reversed(paths.keys()):
+            for i in reversed([int(x) for x in paths.keys()]):
                 if os.path.exists(paths[i].joinpath('clamscan.exe')) is True:
                     self.envySettings.info('clam_config: ClamAV scanner detected;')
                     self.envySettings.debug('clam_config: ClamAV scanner path: {}'.format(str(paths[i].joinpath('clamscan.exe'))))
@@ -181,11 +181,11 @@ class Envyronment_Settings():
         self.envySettings.debug('register_metadefender_api: starting register_metadefender_api...')
         self.envySettings.info('metadeferegister_metadefender_apinder_api: requesting API key...')
         
-        apikey = str(input('Input Metadefender API key: '))
+        apikey = str(shlex.quote(input('Input Metadefender API key: ')))
         self.envySettings.debug('register_metadefender_api: Checking API key...')
         while self.__check_metadefender_api(apikey) is False:
             self.envySettings.info('register_metadefender_api: API key is wrong. Requesting again...')
-            apikey = str(input('Try again: '))
+            apikey = str(shlex.quote(input('Try again: ')))
 
         return apikey
 
