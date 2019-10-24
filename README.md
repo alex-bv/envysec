@@ -80,7 +80,7 @@ Source code reference might be found in docs/API reference dir.
 This section describes how exactly does secEnvyronment works (or does not). 
 
 Briefly, how does it work:
-- User invokeы secEnvyronment scan,
+- User invokes secEnvyronment scan,
 - secEnvyronment open ClamAV subprocess, 
 - and put all ClamAV output in queue,
 - in parallel, thread (work_thread) checks for new lines in queue,
