@@ -206,24 +206,32 @@ class ConsoleInterface():
 
 
     def add_exlcude(self, target: str) -> bool:
-        """
-        """
+        """ Add path to exclude database. """
 
-        self.clam.add_exception(target)
-    
+        if self.clam.add_exception(target) is True:
+            self.envyCLI_Log.debug('add_exlcude: Exclusion added.')
+            return True
+        else:
+            self.envyCLI_Log.warning('add_exlcude: Failed to add exception.')
+            return False
+
     def remove_exlcude(self, target: str) -> bool:
-        """
-        """
+        """ Remove path to exclude database. """
 
-        self.clam.remove_exception(target)
+        if self.clam.remove_exception(target) is True:
+            self.envyCLI_Log.debug('remove_exlcude: Exclusion removed.')
+            return True
+        else:
+            self.envyCLI_Log.warning('remove_exlcude: Failed to remove exception.')
+            return False
 
-    def get_exlcude(self) -> bool:
-        """
-        """
+    def get_exclude(self) -> bool:
+        """ Get exclude list. """
 
         for exception in self.clam.get_exception():
             print(exception)
 
+        return True
 
     def update(self, verbose = False) -> bool:
         """ Simpe update command.
@@ -355,10 +363,10 @@ if __name__ == '__main__':
 
         if args.get_exceptions is True:
             envy_sec.info('Getting exceptions list.')
-            envy_cli.get_exlcude()
+            envy_cli.get_exclude()
             envy_sec.info('Exceptions list received.')
 
         if args.web is True:
             pass
 
-    envy_sec.debug('secEnvyronment work complete.')
+    envy_sec.debug('secEnvyronment: done.')
