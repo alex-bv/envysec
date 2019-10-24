@@ -64,9 +64,23 @@ class ClamAV():
             do not show summary at the end of scan (--no-summary).
         """
 
+        def __parse_line(line: str) -> bool:
+            """ Check if line report thread found.
+            Line must ends with 'FOUND' and starts with path to infected file.
+
+            Return True if both conditions are met, else return False.
+            """
+
+            self.ClamLog.debug('scan: __parse_line: Checking {}'.format(line))
+            if line.endswith(' FOUND\r\n') is True and os.path.exists(line.split(': ')[0]) is True:
+                self.ClamLog.debug('scan: __parse_line: {} met conditions, return True.'.format(line))
+                return True
+            else:
+                self.ClamLog.debug('scan: __parse_line: {} have not met conditions, return False.'.format(line))
+                return False
+
         self.ClamLog.debug('scan: Starting scan.')
 
-        targets = [] + [targets]
         for target in targets:
             args.insert(0, self.__resolve_path(target))
 
@@ -75,11 +89,18 @@ class ClamAV():
                 raise FileNotFoundError('File {} not found or permission denied.'.format(args[0]))
             elif args[0] in self.get_exception():
                 self.ClamLog.info('scan: {} is in exclude list.'.format(str(args[0])))
-                return str()
+                return str('')
 
         for line in self.__start_work(self.__scan, args = args):
-            self.ClamLog.warning('scan: FOUND: {}'.format(str(line)))
-            yield line
+
+            self.ClamLog.debug('scan: Init __parse_line...')
+            if __parse_line(line) is True:
+                self.ClamLog.debug('scan: __parse_line: line reports True.')
+                self.ClamLog.warning('scan: FOUND: {}'.format(str(line)))
+                yield line
+            else:
+                self.ClamLog.debug('scan: __parse_line: line reports False.')
+                self.ClamLog.warning('unknown line: {}'.format(str(line)))
 
     def update(self, args = None) -> "yield output":
         """ Method used to perform a ClamAV database update.
@@ -190,6 +211,9 @@ class ClamAV():
         """
 
         self.ClamLog.debug('__start_work: Initialize work tread.')
+        if args is None:
+            args = list()
+
         work_thread = threading.Thread(target=work, args=args, daemon = True)
         work_thread.start()
         self.ClamLog.debug('__start_work: Work tread Initialized.')
