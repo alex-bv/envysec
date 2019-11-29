@@ -3,8 +3,7 @@
 ## Content table:
 * Introducing.
 * Tutorial.
-* API reference.
-* Developer documentation.
+* Technical details.
 
 
 ## Introducing:
@@ -69,6 +68,8 @@ Command execution priority:
 3. Scan file;
 
 
+<details><summary> Technical details: </summary>
+
 ## API reference:
 
 Source code reference might be found in docs/API reference dir.
@@ -102,6 +103,7 @@ Briefly, how does it work:
  
              The main principal work scheme (1 - begin)
 </pre>
+
 
 ### Metadefender Errors:
 
@@ -244,3 +246,5 @@ Metadefender code | Category | HTTP code
  | **Service Unavailable** | 
 503000 | External service is not reachable | 503
 503001 | External service is not reachable | 503
+
+</details>
