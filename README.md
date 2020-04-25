@@ -3,7 +3,6 @@
 ## Content table:
 * Introducing.
 * Tutorial.
-* API reference.
 * Developer documentation.
 
 
@@ -69,13 +68,7 @@ Command execution priority:
 3. Scan file;
 
 
-## API reference:
-
-Source code reference might be found in docs/API reference dir.
-(./API-reference/index.html)
-
-
-## Developer documentation:
+# Developer documentation:
 
 This section describes how exactly does secEnvyronment works (or does not). 
 
@@ -103,7 +96,7 @@ Briefly, how does it work:
              The main principal work scheme (1 - begin)
 </pre>
 
-### Debug it! Or troubleshooting.
+## Debug it! Or troubleshooting.
 
 All envysec stages provides some logs.
 Prefered way to debug is to analyse logs.
@@ -126,7 +119,7 @@ Write-Output $result.content
 ```
 All possible error codes are listed in Metadefender Errors.
 
-#### Metadefender Errors:
+### Metadefender Errors:
 
 1. HTTP code is HTTP status code, used to control HTTP session status 
    (like if server work or not, connection refused and etc.);
