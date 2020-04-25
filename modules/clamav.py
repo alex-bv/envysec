@@ -135,9 +135,9 @@ class ClamAV():
                 args.insert(0, target)
         else:
             self.ClamLog.error('scan: No targets to be scanned has been specified!')
-            self.ClamLog.info('scan: Maybe targets in exclude list or not exists?')
+            self.ClamLog.info('scan: Maybe target in exclude list or does not exists?')
             raise ValueError('''
-                            No targets to be scanned has been specified!\n
+                            No targets to be scanned has been specified!
                             Maybe targets in exclude list or not exists?
                         ''')
 
