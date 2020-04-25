@@ -18,9 +18,8 @@ Version | Changelog
 0.3c | Exclude List (sqlite3 db, 'exclude.db')
 0.3d | Exclude List fix;
 0.3d | Apply basic SQL security setting;
+0.4 | New API migrated, exclude logic fix, endless scan fix;
 
 ## Future plans:
 - [ ] Web GUI (django?)
-- [ ] [New API migration](https://onlinehelp.opswat.com/mdcloud/6.1_V4_Migration_guide.html)
-- [ ] Fix exclude logic
 - [ ] API key encryption? (hash + pass)

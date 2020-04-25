@@ -3,7 +3,8 @@
 ## Content table:
 * Introducing.
 * Tutorial.
-* Technical details.
+* API reference.
+* Developer documentation.
 
 
 ## Introducing:
@@ -68,8 +69,6 @@ Command execution priority:
 3. Scan file;
 
 
-<details><summary> Technical details: </summary>
-
 ## API reference:
 
 Source code reference might be found in docs/API reference dir.
@@ -81,7 +80,7 @@ Source code reference might be found in docs/API reference dir.
 This section describes how exactly does secEnvyronment works (or does not). 
 
 Briefly, how does it work:
-- User invokes secEnvyronment scan,
+- User invoke secEnvyronment scan,
 - secEnvyronment open ClamAV subprocess, 
 - and put all ClamAV output in queue,
 - in parallel, thread (work_thread) checks for new lines in queue,
@@ -103,7 +102,6 @@ Briefly, how does it work:
  
              The main principal work scheme (1 - begin)
 </pre>
-
 
 ### Metadefender Errors:
 
@@ -246,5 +244,3 @@ Metadefender code | Category | HTTP code
  | **Service Unavailable** | 
 503000 | External service is not reachable | 503
 503001 | External service is not reachable | 503
-
-</details>

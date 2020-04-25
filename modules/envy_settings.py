@@ -14,8 +14,12 @@ class Envyronment_Settings():
     def __init__(self, path = 'settings.json', logging_level = 40):
         """ Settings manager is used to verify and fix current envySec settings.
         
-        path -- path to file with secEnvyronment settings.
-        logging_level -- log verbosity level. Log will be written into stdout.
+        'path' - path to file with secEnvyronment settings.
+        'logging_level' - verbosity of logging:
+            0 - debug,
+            30 - warnings,
+            50 - critical.
+            See 'logging' docs;
         """
 
         logging.basicConfig(level = logging_level,
@@ -46,6 +50,8 @@ class Envyronment_Settings():
                     self.envySettings.warning('__init__: Skipping new setting file creation.')
                 else:
                     self.envySettings.info('__init__: New setting file created.')
+            else:
+                self.envySettings.info('__init__: Settings verification complete.')
 
         except FileNotFoundError as fnotfound:
             self.envySettings.warning('__init__: Failed to open {}. File not found.'.format(path))
@@ -180,7 +186,7 @@ class Envyronment_Settings():
 
         self.envySettings.debug('register_metadefender_api: starting register_metadefender_api...')
         self.envySettings.info('metadeferegister_metadefender_apinder_api: requesting API key...')
-        
+
         apikey = str(shlex.quote(input('Input Metadefender API key: ')))
         self.envySettings.debug('register_metadefender_api: Checking API key...')
         while self.__check_metadefender_api(apikey) is False:
@@ -214,6 +220,33 @@ class Envyronment_Settings():
         self.envySettings.info('__check_metadefender_api: API key validated.')
         return True
 
+    def __search_api_locally(self):
+        """ Used to search 'settings.json' file in current work dirrectory.
+
+        Return settings if file found.
+        Return '' (empty string) if file not found.
+        """
+
+        try:
+            with open(pathlib.path(os.path.basename(os.path.abspath(__file__))).joinpath('settings.json'), 'r') as settings_f:
+                self.settings = json.load(settings_f)
+
+            self.envySettings.debug('__init__: Setting successfully read.')
+            self.envySettings.debug('__init__: Verifying settings...')
+            if self.__check_metadefender_api(self.settings["MetadefenderAPI"]) is False:
+                self.envySettings.warning('__init__: Bad Metadefender API key received;')
+            else:
+                self.envySettings.info('__init__: Settings verification complete.')
+                return self.settings
+
+        except FileNotFoundError as fnotfound:
+            self.envySettings.warning('__init__: Failed to open {}. File not found.'.format(path))
+            self.envySettings.debug('__init__: FileNotFoundError args: ' + str(fnotfound.args))
+            return ''
+        except PermissionError as permdenied:
+            self.envySettings.warning('__init__: Failed to open {}. Permissions denied!'.format(path))
+            self.envySettings.debug('__init__: PermissionsError args: ' + str(permdenied.args))
+            raise
 
     def __write_new_settings(self, settings: dict, path: str) -> bool:
         """ Create new setting file.
