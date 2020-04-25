@@ -103,7 +103,30 @@ Briefly, how does it work:
              The main principal work scheme (1 - begin)
 </pre>
 
-### Metadefender Errors:
+### Debug it! Or troubleshooting.
+
+All envysec stages provides some logs.
+Prefered way to debug is to analyse logs.
+
+If log analyse is not enough, try to check Metadefender API availability, for example:
+```
+# For *nix:
+curl 'https://api.metadefender.com/v4/ip/1.2.3.4' -H 'apikey: SOME_API_KEY'
+```
+Or
+```
+# For Windows:
+$uri = 'https://api.metadefender.com/v4/ip/1.2.3.4'
+
+$headers = @{}
+$headers.Add('apikey','SOME_API_KEY')
+
+$result = Invoke-WebRequest -Uri $uri -Headers $headers
+Write-Output $result.content
+```
+All possible error codes are listed in Metadefender Errors.
+
+#### Metadefender Errors:
 
 1. HTTP code is HTTP status code, used to control HTTP session status 
    (like if server work or not, connection refused and etc.);
