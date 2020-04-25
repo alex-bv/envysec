@@ -1,7 +1,15 @@
 # Project settings and log (might be private)
 /settings.json
+settings.json
+
 /.secEnvyronment.log
+.secEnvyronment.log
 /secEnvyronment.log
+secEnvyronment.log
+
+/modules/exclude.db
+/exclude.db
+exclude.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
