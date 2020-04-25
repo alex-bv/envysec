@@ -4,7 +4,7 @@ import os
 import pathlib
 import queue
 import sqlite3
-import subprocess
+import subprocess # WARNING, POSSIBLE SECURITY ISSUE: Bandit report: 'Consider possible security implications associated with subprocess module.'
 import threading
 
 
@@ -12,8 +12,13 @@ class ClamAV():
     """ ClamAV command class. This is not a stand-alone scanner.
     It depends on original ClamAV and used to perform an easier-control.
 
+    Available methods:
+        public: scan, update
+        private: __scan, __update, __call_proc, __resolve_path
+
     Required packages (dependencies): 
-        built-in: datetime, logging, os, queue, subprocess, threading, sqlite3, pathlib
+        built-in: datetime, logging, os, pathlib, queue, sqlite3, subprocess, threading
+        3-d party: -
 
     To perform a scan, it uses sys.Popen to call for a ClamAV bin with a customized args.
     For storring exlclude database uses sqlite3.
@@ -25,8 +30,12 @@ class ClamAV():
     def __init__(self, config: dict, logging_level = 30):
         """ ClamAV class used to control ClamAV app.
 
-        config -- dictionary with paths to ClamAV bins (freshclam & clamscan);
-        logging_level -- verbosity of logging (0 - debug, 30 - warnings. See logging docs)
+        'config' - dictionary with paths to ClamAV bins (freshclam & clamscan);
+        'logging_level' - verbosity of logging:
+            0 - debug,
+            30 - warnings,
+            50 - critical.
+            See 'logging' docs;
         """
 
         logging.basicConfig(level = logging_level,
@@ -43,55 +52,97 @@ class ClamAV():
         self.ClamLog.debug('__init__: Class initialized.')
 
 
-    def scan(self, targets: list, args = ['-i', '-r', '--no-summary']) -> "yield str":
+    def scan(self, targets: list, args = ['-i', '-r', '--no-summary', '--alert-exceeds-max=no'], exclude = None) -> "yield str":
         """ Method used to perform a ClamAV scan.
 
-        targets -- list of paths to be scanned;
-        args -- list of arguments to be sent to ClamAV;
+        'targets' - list of paths to be scanned;
+        'args' - list of arguments to be sent to ClamAV;
+        'exclude' - list of paths not to be scanned.
 
         Return False if file/dir (target) does not exists, might not be accessed
         or in exclude list (see config).
         If target exist and not in exclude list, it will call for ClamAV
         and yield it\'s output.
 
-        Argument target is a file or dir to be scanned.
-        Args are arguments list to be sent to ClamAV bin
+        Argument 'target' is a file or dir to be scanned.
+        'Args' are arguments list to be sent to ClamAV bin
         (see ClamAV documentations for more).
+        Argument 'Exclude' is a list with valid paths not to be scanned.
+        Every in 'Exclude' will be formated individually (file or dir type definition, formation to '--exclude' or '--exclude-dir')
 
         Default scanner behaveour is (arguments descriptions):
             show only infected files (-i). It also will show all files, that might not be accessed by ClamAV;
             scan recursively (-r). It usefull for scanning whole dir;
-            do not show summary at the end of scan (--no-summary).
+            do not show summary at the end of scan (--no-summary);
+            do not show 'exceeds max' errors (--alert-exceeds-max=no).
         """
 
-        def __parse_line(line: str) -> bool:
-            """ Check if line report thread found.
-            Line must ends with 'FOUND' and starts with path to infected file.
+        self.ClamLog.debug('scan: Starting scan.')
 
-            Return True if both conditions are met, else return False.
+        def __parse_line(line: str) -> bool:
+            """ Check if 'line' report thread found.
+            'line' must ends with 'FOUND' and starts with path to infected file.
+
+            Return True if both conditions are met;
+            Return False if one of conditions was not met.
             """
 
             self.ClamLog.debug('scan: __parse_line: Checking {}'.format(line))
-            if line.endswith(' FOUND\r\n') is True and os.path.exists(line.split(': ')[0]) is True:
+            if line.strip().endswith(' FOUND') is True and os.path.exists(line.split(': ')[0]) is True:
                 self.ClamLog.debug('scan: __parse_line: {} met conditions, return True.'.format(line))
                 return True
             else:
                 self.ClamLog.debug('scan: __parse_line: {} have not met conditions, return False.'.format(line))
                 return False
 
-        self.ClamLog.debug('scan: Starting scan.')
+        self.ClamLog.debug('scan: Retrieving exceptions...')
+        if exclude is not None and exclude != []:
+            exception_list = str() # Used to translate exclude elements to string; example: exclude = ['a/b/c'] -> except_list = '--exclude=a/b/c'
+            for exception in exclude:
+                exception_path = self.__resolve_path(exception)
 
-        for target in targets:
-            args.insert(0, self.__resolve_path(target))
+                if os.path.isdir(exception_path) is True:
+                    exception_list += '--exclude-dir={}'.format(exception_path)
+                elif os.path.isfile(exception_path) is True:
+                    exception_list += '--exclude={}'.format(exception_path)
+                elif os.path.islink(exception_path) is True:
+                    self.ClamLog.info('scan: {} is a symbolic link, trying to follow...'.format(exception_path))
+                    exception_list += '--exclude={}'.format(exception_path)
+                elif os.path.ismount(exception_path) is True:
+                    self.ClamLog.info('scan: {} is a mount point, trying to continue...'.format(exception_path))
+                    exception_list += '--exclude={}'.format(exception_path)
+                else:
+                    self.ClamLog.warning('scan: type of {} is not defined, trying to continue...'.format(exception_path))
+                    exception_list += '--exclude={}'.format(exception_path)
+                exception_list += ' ' # Add space, ClamAV does\'nt support comma-separated lists.
+            args.append(exception_list.strip()) # Strip whitespace at the end;
 
-            if os.path.exists(args[0]) is False:
-                self.ClamLog.info('scan: {} is not exists, so could not be scanned.'.format(str(args[0])))
-                raise FileNotFoundError('File {} not found or permission denied.'.format(args[0]))
-            elif args[0] in self.get_exception():
-                self.ClamLog.info('scan: {} is in exclude list.'.format(str(args[0])))
-                return str('')
+        self.ClamLog.debug('scan: Checking targets...')
+        targets = [self.__resolve_path(target) for target in targets]
 
-        for line in self.__start_work(self.__scan, args = args):
+        _targets = list() # Prevent empty 'targets' list to be insert in 'args'.
+        for target in targets: 
+            if os.path.exists(target) is False:
+                self.ClamLog.info('scan: {} does not exists, so could not be scanned.'.format(target))
+            elif target in exclude:
+                self.ClamLog.info('scan: {} is in exclude list, so will not be scanned.'.format(target))
+            else:
+                self.ClamLog.debug('scan: {} added to scan list.'.format(target))
+                _targets.append(target)
+
+        if len(_targets) > 0: # Prevent empty 'targets' list to be insert in 'args'.
+            for target in _targets:
+                args.insert(0, target)
+        else:
+            self.ClamLog.error('scan: No targets to be scanned has been specified!')
+            self.ClamLog.info('scan: Maybe target in exclude list or does not exists?')
+            raise ValueError('''
+                            No targets to be scanned has been specified!
+                            Maybe targets in exclude list or not exists?
+                        ''')
+
+        self.ClamLog.debug('scan: Starting work...')
+        for line in self.__call_proc(self.__scan, args = args):
 
             self.ClamLog.debug('scan: Init __parse_line...')
             if __parse_line(line) is True:
@@ -102,19 +153,24 @@ class ClamAV():
                 self.ClamLog.debug('scan: __parse_line: line reports False.')
                 self.ClamLog.warning('unknown line: {}'.format(str(line)))
 
-    def update(self, args = None) -> "yield output":
+    def update(self, args = ['--stdout', '--show-progress']) -> "yield output":
         """ Method used to perform a ClamAV database update.
-
         It yield\'s ClamAV Update output.
 
-        Args are arguments list to be sent to ClamAV bin
+        Some Linux systems don\'t require manual update.
+        (see 'freshclamd' state)
+
+        'args' are arguments list to be sent to ClamAV bin
         (see ClamAV documentations for more).
 
         For more information about ClamAV, see ClamAV documentations.
+        Default update behaveour is (arguments descriptions):
+            out any lines to stdout, not to stderr (--stdout);
+            show update progress (--show-progress).
         """
 
         self.ClamLog.info('update: ClamAV Update started.')
-        for line in self.__start_work(self.__update, args=args):
+        for line in self.__call_proc(self.__update, args=args):
             self.ClamLog.info(line.strip())
             yield line
 
@@ -136,25 +192,25 @@ class ClamAV():
         self.ClamLog.debug('__scan: Scan started.')
         args = list(args)
         
-        try:
+        try: # Bandit report: 'subprocess call - check for execution of untrusted input.', see line 7.
             with subprocess.Popen([self.configuration["Scanner"]] + args, stdout=subprocess.PIPE) as scanp:
                 self.ClamLog.debug('__scan: Subprocess opened. (subprocess.Popen)')
                 for line in iter(scanp.stdout.readline, b''):
                     self.clamav_queue.put(line)
-        except MemoryError as merr:
+        except MemoryError as memory_err:
             self.ClamLog.critical('__scan: Failed to perform __scan. Probably not enough memory.')
-            self.ClamLog.debug('__scan: MemoryError arguments: ' + str(merr.args))
-            raise OSError('System may not perform scan, probably not enough memory.', merr.args)
-        except OSError as oserr:
+            self.ClamLog.debug('__scan: MemoryError arguments: {}'.format(str(memory_err.args)))
+            raise OSError('System may not perform scan, probably not enough memory.', memory_err.args)
+        except OSError as os_err:
             self.ClamLog.critical("""__scan: Failed to call for __scan. Probably, module subprocess.Popen 
-                                 received wrong bin\'s filename.""")
-            self.ClamLog.debug('__scan: OSError arguments: ' + str(oserr.args))
-            raise ValueError('System may not perform scan, probably not system error raised.', oserr.args)
-        except ValueError as verr:
+                                received wrong bin\'s filename.""")
+            self.ClamLog.debug('__scan: OSError arguments: {}'.format(str(os_err.args)))
+            raise ValueError('System may not perform scan, probably not system error raised.', os_err.args)
+        except ValueError as value_err:
             self.ClamLog.critical("""__scan: Failed to call for __scan. Probably, module subprocess.Popen 
                                 called with invalid arguments.""")
-            self.ClamLog.debug('__scan: ValueError arguments: ' + str(verr.args))
-            raise ValueError('Failed to spawn process, probably wrong internal arguments received.', verr.args)
+            self.ClamLog.debug('__scan: ValueError arguments: {}'.format(str(value_err.args)))
+            raise ValueError('Failed to spawn process, probably wrong internal arguments received.', value_err.args)
         else:
             self.ClamLog.debug('__scan: Scan done.')
             return True
@@ -176,57 +232,65 @@ class ClamAV():
         self.ClamLog.debug('__update: Update in fact started.')
         args = list(args)
 
-        try:
+        try: # WARN: Bandit report: 'subprocess call - check for execution of untrusted input.', see line 7.
             with subprocess.Popen([self.configuration["Updater"]] + args, stdout=subprocess.PIPE) as updatep:
                 self.ClamLog.debug('__update: Subprocess opened. (subprocess.Popen)')
                 for line in iter(updatep.stdout.readline, b''):
                     self.clamav_queue.put(line)
-        except OSError as oserr:
+        except OSError as os_err:
             self.ClamLog.critical("""__update: Failed to call for __update. Probably, module subprocess.Popen 
                                 received wrong bin\'s filename.""")
-            self.ClamLog.debug('__update: OSError arguments: ' + str(oserr.args))
-            raise ValueError('Failed to spawn process, probably wrong bin\'s filename received.', oserr.args)
-        except ValueError as verr:
+            self.ClamLog.debug('__update: OSError arguments: {}'.format(str(os_err.args)))
+            raise ValueError('Failed to spawn process, probably wrong bin\'s filename received.', os_err.args)
+        except ValueError as value_err:
             self.ClamLog.critical("""__update: Failed to call for __update. Probably, module subprocess.Popen 
                                 called with invalid arguments.""")
-            self.ClamLog.debug('__update: ValueError arguments: ' + str(verr.args))
-            raise ValueError('Failed to spawn process, probably wrong internal arguments received.', verr.args)
-        except MemoryError as merr:
+            self.ClamLog.debug('__update: ValueError arguments: {}'.format(str(value_err.args)))
+            raise ValueError('Failed to spawn process, probably wrong internal arguments received.', value_err.args)
+        except MemoryError as memory_err:
             self.ClamLog.critical('__update: Failed to perform __update. Probably not enough memory.')
-            self.ClamLog.debug('__update: MemoryError arguments: ' + str(merr.args))
-            raise MemoryError('System may not perform update, probably not enough memory.', merr.args)
+            self.ClamLog.debug('__update: MemoryError arguments: {}'.format(str(memory_err.args)))
+            raise MemoryError('System may not perform update, probably not enough memory.', memory_err.args)
         else:
             self.ClamLog.debug('__update: Update done.')
             return True
 
 
-    def __start_work(self, work: 'function', args = None) -> "yield str":
+    def __call_proc(self, work: 'function', args = None) -> "yield str":
         """ Initialize main work thread.
         It used to call for main working function (like scan or update).
 
-        work -- name of function to be called.
-        args -- list of arguments to be sent to work function.
+        'work' - name of function to be called.
+        'args' - list of arguments to be sent to work function.
 
         Yield work\'s function output.
         """
 
-        self.ClamLog.debug('__start_work: Initialize work tread.')
+        self.ClamLog.debug('__call_proc: Initialize work thread.')
         if args is None:
+            self.ClamLog.debug('__call_proc: No arguments received.')
             args = list()
 
-        work_thread = threading.Thread(target=work, args=args, daemon = True)
-        work_thread.start()
-        self.ClamLog.debug('__start_work: Work tread Initialized.')
+        self.ClamLog.debug('__call_proc: Creating thread.')
+        work_thread = threading.Thread(target = work, args = args, daemon = True)
+        self.ClamLog.debug('__call_proc: Starting thread.')
+        work_thread.join() # Use 'join' to prevent endless scan
+        self.ClamLog.debug('__call_proc: Work thread Initialized.')
 
+        self.ClamLog.debug('__call_proc: Looking for output.')
         while work_thread.is_alive():
             try:
                 line = self.clamav_queue.get_nowait()
-                line = line.decode('utf-8').replace('\n', '')
+                line = line.decode('utf-8').strip()
+                self.ClamLog.debug('__call_proc: Output: {}'.format(line))
             except queue.Empty:
                 pass
             else:
+                self.ClamLog.debug('__call_proc: Yield {}.'.format(line))
                 yield line
-
+        else:
+            self.ClamLog.debug('__call_proc: Process ended without any output.')
+            return None
 
     def __resolve_path(self, path: str) -> str:
         """ Resolve path string to absolute path.
@@ -239,194 +303,18 @@ class ClamAV():
 
         try:
             path = pathlib.Path(path)
-        except NotImplementedError as prnie:
+        except NotImplementedError as path_resolve_bad_python_err:
             self.ClamLog.warning('__resolve_path: Failed to resolve {}.'.format(path))
             self.ClamLog.info('__resolve_path: TIP: Probably OS is not supported.')
-            self.ClamLog.debug('__resolve_path: NotImplementedError occurred, log: ' + str(prnie.args))
+            self.ClamLog.debug('__resolve_path: NotImplementedError occurred, log: {}'.format(str(path_resolve_bad_python_err.args)))
             self.ClamLog.info('__resolve_path: Trying to run anyway...')
             return str(path)
-        except TypeError as prte:
+        except TypeError as path_resolve_bad_os_err:
             self.ClamLog.warning('__resolve_path: Failed to resolve {}.'.format(path))
             self.ClamLog.info('__resolve_path: TIP: Probably wrong OS type detected.')
-            self.ClamLog.debug('__resolve_path: TypeError occurred, log: ' + str(prte.args))
+            self.ClamLog.debug('__resolve_path: TypeError occurred, log: {}'.format(str(path_resolve_bad_os_err.args)))
             self.ClamLog.info('__resolve_path: Trying to run anyway...')
             return str(path)
         finally:
             self.ClamLog.debug('__resolve_path: Path converted. Return {}'.format(str(path.expanduser().resolve())))
             return str(path.expanduser().resolve())
-
-    
-    ## SQL Database management;
-
-    def __connect_db(self) -> bool:
-        """ Connect to ClamAV exclude database.
-        To close connection use __close_db;
-
-        Used to control ClamAV scan output;
-
-        Default exclude.db have to have single table 'exclude'.
-        Exclude database filename is 'exclide.db' (secEnvyronment/modules/exclude.db).
-        """
-
-        self.ClamLog.info('__connect_db: Connecting to Exclude database...')
-
-        db_path = pathlib.Path(os.path.abspath(os.path.dirname(__file__))).resolve().joinpath('exclude.db')
-        self.ClamLog.debug('__connect_db: Checking database existence...')
-        self.ClamLog.debug('__connect_db: Trying {} ...'.format(str(db_path)))
-
-        if os.path.exists(db_path) is True:
-            try:
-                self.__exclude_connect = sqlite3.connect(str(db_path))
-                self.__dbcursor = self.__exclude_connect.cursor()
-            except sqlite3.NotSupportedError as sqlnserr:
-                self.ClamLog.warning('__connect_db: Wrong database type detected!')
-                self.ClamLog.debug('__connect_db: Database error log: ' + str(sqlnserr.args))
-                return False
-            except sqlite3.DataError as sqldbe:
-                self.ClamLog.warning('__connect_db: Database error occurred!')
-                self.ClamLog.debug('__connect_db: Database error log: ' + str(sqldbe.args))
-                return False
-            except sqlite3.IntegrityError as sqlintege:
-                self.ClamLog.warning('__connect_db: Database integrity compromised.')
-                self.ClamLog.debug('__connect_db: Database error log: ' + str(sqlintege.args))
-                return False
-        else:
-            self.ClamLog.warning('__connect_db: Database does not exist or permissions denied.')
-            self.ClamLog.debug('__connect_db: Can\'t connect to {}'.format(str(db_path)))
-            return False
-
-        self.ClamLog.debug('__connect_db: Connected.')
-        return True
-
-    def __close_db(self) -> bool:
-        """ Close connection to ClamAV exclude database.
-        To open connection use __connect_db;
-
-        Used to control ClamAV scan output;
-
-        Default exclude.db have to have single table 'exclude'.
-        Exclude database filename is 'exclide.db' (secEnvyronment/modules/exclude.db).
-        """
-
-        self.ClamLog.info('__close_db: Closing Database connection...')
-
-        try:
-            self.ClamLog.debug('__close_db: Commiting...')
-            self.__exclude_connect.commit()
-            self.ClamLog.debug('__close_db: Closing database...')
-            self.__dbcursor.close()
-        except sqlite3.ProgrammingError as sqlprerr:
-            self.ClamLog.warning('__close_db: Programming error occurred!')
-            self.ClamLog.debug('__close_db: Database error log: ' + str(sqlprerr.args))
-            return False
-        except sqlite3.OperationalError as sqloperr:
-            self.ClamLog.warning('__close_db: Operational error occurred!')
-            self.ClamLog.debug('__close_db: Database error log: ' + str(sqloperr.args))
-            return False
-
-        self.ClamLog.debug('__close_db: Complete.')
-        return True
-
-
-    def add_exception(self, path: str) -> bool:
-        """ Add path to exclude list.
-
-        path -- is a (string) path to file/folder.
-
-        Used to connect and add path to 'exclude.db'.
-        """
-
-        self.ClamLog.info('add_exception: Adding exception...')
-        self.__connect_db()
-        path = self.__resolve_path(path)
-
-        try:
-            self.ClamLog.info('add_exception: Adding exclude to database.')
-            self.ClamLog.debug('add_exception: Verifying path...')
-            if os.path.exists(path) is True:
-                self.ClamLog.debug('add_exception: Add exclude: {}'.format(str(path)))
-                self.__dbcursor.execute("INSERT INTO exclude(path) VALUES (?)", (path,))
-            else:
-                self.ClamLog.warning('add_exception: {} does not exist;'.format(str(path)))
-                self.__close_db()
-                return False
-        except (sqlite3.ProgrammingError, sqlite3.OperationalError) as sqle:
-            self.ClamLog.warning('add_exception: Failed execute SQL command.')
-            self.ClamLog.debug('add_exception: Database error log: ' + str(sqle.args))
-            self.__close_db()
-            return False
-        finally:
-            self.ClamLog.debug('add_exception: Database management complete.')
-            self.__close_db()
-            return True
-
-    def remove_exception(self, path: str) -> bool:
-        """ Remove path from exclude list.
-
-        path -- is a (string) path to file/folder.
-
-        Used to connect and remove path from 'exclude.db'.
-        """
-
-        self.ClamLog.info('remove_exception: Removing exception...')
-        self.__connect_db()
-        path = self.__resolve_path(path)
-
-        try:
-            self.ClamLog.info('remove_exception: Removing exclude from database.')
-            self.ClamLog.debug('remove_exception: Trying to remove exclude: {}'.format(str(path[0])))
-
-            for out in self.__dbcursor.execute("SELECT 1 FROM exclude WHERE path=(?)", (path,)):
-                if out == (1,):
-                    self.__dbcursor.execute("DELETE FROM exclude WHERE path =(?)", (path,))
-                    self.ClamLog.info('remove_exception: {} successfully removed.'.format(str(path)))
-                else:
-                    self.ClamLog.warning('remove_exception: Failed to remove {} from database.'.format(str(path)))
-                    self.ClamLog.info('remove_exception: {} not in database.'.format(str(path)))
-                    self.__close_db()
-                    return False
-        except(sqlite3.ProgrammingError, sqlite3.OperationalError) as sqle:
-            self.ClamLog.warning('remove_exception: Failed execute SQL command.')
-            self.ClamLog.debug('remove_exception: Database error log: ' + str(sqle.args))
-            self.__close_db()
-            return False
-        finally:
-            self.ClamLog.debug('remove_exception: Database management complete.')
-            self.__close_db()
-            return True
-
-    def get_exception(self) -> list:
-        """ Get all items in exclude list.
-
-        Used to connect and get list from 'exclude.db'.
-
-        Executing 'for ... in ... SELECT * FROM exclude' will return turple;
-        By design, only 1 object in turple will be counted, other will be skipped.
-        Yielding first item in a turple 'item[0]'.
-
-        Return None if database error occurred.
-        """
-
-        self.ClamLog.info('get_exception: Getting exceptions...')
-        self.__connect_db()
-        exclude_list = list()
-        
-        try:
-            self.ClamLog.debug('get_exception: Getting exclude list;')
-            for row in self.__dbcursor.execute("SELECT * FROM exclude;"):
-                self.ClamLog.debug('get_exception: In exclude: {}'.format(str(row[0])))
-                self.ClamLog.debug('get_exception: Raw exception line: ' + str(row))
-                exclude_list += [row[0]]
-        except (sqlite3.ProgrammingError, sqlite3.OperationalError) as sqle:
-            self.ClamLog.warning('get_exception: Failed execute SQL command.')
-            self.ClamLog.debug('get_exception: Database error log: ' + str(sqle.args))
-            self.__close_db()
-            return []
-        finally:
-            self.ClamLog.debug('get_exception: Database management complete.')
-            self.__close_db()
-            
-            if exclude_list is not None:
-                return exclude_list
-            else:
-                return []

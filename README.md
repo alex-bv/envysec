@@ -3,7 +3,7 @@
 ## Content table:
 * Introducing.
 * Tutorial.
-* Technical details.
+* Developer documentation.
 
 
 ## Introducing:
@@ -68,20 +68,12 @@ Command execution priority:
 3. Scan file;
 
 
-<details><summary> Technical details: </summary>
-
-## API reference:
-
-Source code reference might be found in docs/API reference dir.
-(./API-reference/index.html)
-
-
-## Developer documentation:
+# Developer documentation:
 
 This section describes how exactly does secEnvyronment works (or does not). 
 
 Briefly, how does it work:
-- User invokes secEnvyronment scan,
+- User invoke secEnvyronment scan,
 - secEnvyronment open ClamAV subprocess, 
 - and put all ClamAV output in queue,
 - in parallel, thread (work_thread) checks for new lines in queue,
@@ -104,6 +96,28 @@ Briefly, how does it work:
              The main principal work scheme (1 - begin)
 </pre>
 
+## Debug it! Or troubleshooting.
+
+All envysec stages provides some logs.
+Prefered way to debug is to analyse logs.
+
+If log analyse is not enough, try to check Metadefender API availability, for example:
+```
+# For *nix:
+curl 'https://api.metadefender.com/v4/ip/1.2.3.4' -H 'apikey: SOME_API_KEY'
+```
+Or
+```
+# For Windows:
+$uri = 'https://api.metadefender.com/v4/ip/1.2.3.4'
+
+$headers = @{}
+$headers.Add('apikey','SOME_API_KEY')
+
+$result = Invoke-WebRequest -Uri $uri -Headers $headers
+Write-Output $result.content
+```
+All possible error codes are listed in Metadefender Errors.
 
 ### Metadefender Errors:
 
@@ -246,5 +260,3 @@ Metadefender code | Category | HTTP code
  | **Service Unavailable** | 
 503000 | External service is not reachable | 503
 503001 | External service is not reachable | 503
-
-</details>
