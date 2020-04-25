@@ -185,7 +185,7 @@ class Envyronment_Settings():
         """
 
         self.envySettings.debug('register_metadefender_api: starting register_metadefender_api...')
-        self.envySettings.info('metadeferegister_metadefender_apinder_api: requesting API key...')
+        self.envySettings.info('register_metadefender_api: requesting API key...')
 
         apikey = str(shlex.quote(input('Input Metadefender API key: ')))
         self.envySettings.debug('register_metadefender_api: Checking API key...')
