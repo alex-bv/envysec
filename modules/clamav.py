@@ -128,7 +128,7 @@ class ClamAV():
                 self.ClamLog.info('scan: {} is in exclude list, so will not be scanned.'.format(target))
             else:
                 self.ClamLog.debug('scan: {} added to scan list.'.format(target))
-                _targets.append(targets)
+                _targets.append(target)
 
         if len(_targets) > 0: # Prevent empty 'targets' list to be insert in 'args'.
             for target in _targets:
