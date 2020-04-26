@@ -23,9 +23,3 @@ Version | Changelog
 ## Future plans:
 - [ ] Web GUI (django?)
 - [ ] API key encryption? (hash + pass)
-
-## Known bugs:
-
-Priority | Bug | Actions to reproduce
--------- | --- | --------------------
-High | Endless scan | Unknown, semi-fixed, sometimes appears on Linux systems.
