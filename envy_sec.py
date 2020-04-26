@@ -11,7 +11,7 @@ try:
     from modules import envy_settings
     from modules import sql_management
 except (ModuleNotFoundError, ImportError):
-    print('\aFailed to start secEnvyronment.')
+    print('Failed to start secEnvyronment.')
     print('Check if all dependencies present or if application integrity is OK.')
     raise
 
@@ -24,7 +24,7 @@ class ConsoleInterface():
     Required packages (dependencies): 
         inherit dependencies from ClamAV class, Metadefender class and SQL exclude database management class.
         and: ipaddress, shlex
-    
+
     Available methods:
         public: ip_scanner, file_scanner, update, add_exception, remove_exclude, get_exclude
         private: __show_ip_scan_results, __parse_metadefender_scan, __input_parse
@@ -46,7 +46,7 @@ class ConsoleInterface():
                             filemode = 'a',
                             format='%(asctime)s >> %(name)s - %(levelname)s: %(message)s',
                             datefmt='%d.%m.%Y %H:%M:%S')
-        
+
         self.envyCLI_Log = logging.getLogger('EnvySec CLI')
         self.envyCLI_Log.debug('__init__: Initializing class...')
 
@@ -59,7 +59,7 @@ class ConsoleInterface():
 
         self.clam = clamav.ClamAV(self.envy_conf.clam_config, logging_level = logging_level)
         self.metadef = metadefender.Metadefender(self.envy_conf.settings["MetadefenderAPI"], logging_level = logging_level)
-        
+
         try:
             self.envyCLI_Log.debug('__init__: Trying to find exclude database...')
             self.exclude_db = sql_management.ExcludeDB(database = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'modules', 'exclude.db'))
@@ -72,11 +72,12 @@ class ConsoleInterface():
 
     def ip_scanner(self, targets: list, geo = False) -> bool:
         """ Scan IP address using Metadefender API.
-        
+
         'targets' - list of IP to be scanned;
         'geo' - flag to show geo information about IP.
 
         Return True, if scan complete without errors.
+        Raise ipaddress.NetmaskValueError or ipaddress.AddressValueError if target is invalid.
         """
 
         self.envyCLI_Log.debug('ip_scanner: Starting IP scan.')
@@ -98,7 +99,7 @@ class ConsoleInterface():
                 self.envyCLI_Log.error('Iip_scanner: invalid IP mask: {}!'.format(targets))
                 self.envyCLI_Log.debug('ip_scanner: ipaddress.NetmaskValueError args: {}'.format(wrong_mask))
                 raise
-            
+
             scan_dump = dict()
             for ip in ip_addr.network:
                 ip = str(ip)
@@ -114,17 +115,17 @@ class ConsoleInterface():
                 else:
                     self.envyCLI_Log.warning('Invalid IP address: {}!'.format(ip))
                     print('{} is not global IP, so not scanned.'.format(ip))
-            
+
             self.envyCLI_Log.debug('ip_scanner: Calling for __show_ip_scan_results...')
             if self.__show_ip_scan_results(scan_dump, geo = geo) is True:
                 self.envyCLI_Log.info('ip_scanner: Scanning {} is done.'.format(ip))
-        
+
         self.envyCLI_Log.info('ip_scanner: Scan complete.')
         return True
 
     def __show_ip_scan_results(self, scan_results: dict, geo = False) -> bool:
         """ Parse data and print it to std.out. 
-        
+
         'scan_results' - actual scan results (dict), received from Metadefender;
         'geo' - flag to show geo information about IP.
 
@@ -148,7 +149,7 @@ class ConsoleInterface():
                             ))
         except IndexError as index_err:
             self.envyCLI_Log.critical('__show_ip_scan_results: Unexpected index error.')
-            self.envyCLI_Log.debug('__show_ip_scan_results: IndexError args: {}'.format(str(index_err)))
+            self.envyCLI_Log.debug('__show_ip_scan_results: IndexError args: {}'.format(index_err.args))
             raise
         else:
             self.envyCLI_Log.debug('__show_ip_scan_results: Parsing done successfully.')
@@ -156,7 +157,7 @@ class ConsoleInterface():
 
     def file_scanner(self, targets: list, exclude = None) -> bool:
         """ Scan file.
-        
+
         'targets' - list of targets to be sanned;
         'exclude' - list of paths to be ignored.
 
@@ -166,12 +167,13 @@ class ConsoleInterface():
 
         self.envyCLI_Log.debug('file_scanner: Starting file scan.')
         self.envyCLI_Log.debug('file_scanner: received targets: {}'.format(str(targets)))
-        
+
         self.envyCLI_Log.debug('file_scanner: getting exclude list...')
-        exclude = self.exclude_db.get_exception()
+        if exclude is None:
+            exclude = self.exclude_db.get_exception()
         self.envyCLI_Log.debug('file_scanner: exclude list: {}'.format(exclude))
 
-        print('Scanning...') # This may take a while...
+        print('Scanning...')
 
         self.envyCLI_Log.debug('file_scanner: parsing targets...')
         targets = self.__targets_parse(targets) # Shlex targets (!)
@@ -188,7 +190,7 @@ class ConsoleInterface():
             self.envyCLI_Log.debug('file_scanner: Start {} existence check.'.format(target))
             if os.path.exists(target.strip('\'\"')) is False:
                 self.envyCLI_Log.error('file_scanner: {} does not exist or might not be accessed.'.format(target))
-                print('\a{} does not exist.'.format(str(target)))
+                print('{} does not exist.'.format(str(target)))
                 return False # Just remove 'target' from targets and try to continue
 
         if exclude != []:
@@ -230,7 +232,7 @@ class ConsoleInterface():
 
     def __parse_metadefender_scan(self, target: str, scan_result: dict, scan_details: dict) -> bool:
         """ Parse data and print it to std.out. 
-        
+
         'target' - path to scanned file;
         'scan_result' - actual file scan result, received from Metadefender;
         'scan_details' - meta information about performed by Metadefender scan.
@@ -245,7 +247,7 @@ class ConsoleInterface():
         print('\tTotal detections: {}'.format(scan_details["TotalDetections"]))
         for av in scan_result:
             print('\t\t{}: {}'.format(av, scan_result[av]))
-        
+
         self.envyCLI_Log.debug('__parse_metadefender_scan: Parsing complete.')
         return True
 
@@ -263,7 +265,7 @@ class ConsoleInterface():
 
         self.envyCLI_Log.debug('Signatures update started.')
         print('\tUpdating ClamAV signatures...')
-        
+
         for update_output in self.clam.update():
             if verbose is True:
                 print(update_output)
@@ -288,7 +290,7 @@ class ConsoleInterface():
         self.envyCLI_Log.debug('add_exception: Parsing targets...')
         targets = self.__targets_parse(targets) # Shlex targets (!)
         self.envyCLI_Log.debug('add_exception: Targets parsed.')
-        
+
         self.envyCLI_Log.debug('add_exception: Adding exception...')
         for target in targets:
             if self.exclude_db.add_exception(target) is True:
@@ -300,7 +302,7 @@ class ConsoleInterface():
 
     def remove_exception(self, targets: list) -> bool:
         """ Remove path from exclude database.
-        
+
         'targets' - list of paths to be removed from exclude list.
 
         Return True if path had been successfully removed from exclude list.
@@ -316,12 +318,12 @@ class ConsoleInterface():
                 self.envyCLI_Log.debug('remove_exception: Exception removed.')
             else:
                 self.envyCLI_Log.info('remove_exception: Failed to remove exception.')
-        
+
         return True
 
     def get_exclude(self) -> bool:
         """ Print exclude list.
-        
+
         Return True, if function had been complete successfully.
         """
 
@@ -365,7 +367,7 @@ if __name__ == '__main__':
                         filemode = 'a',
                         format='%(asctime)s >> %(name)s - %(levelname)s: %(message)s',
                         datefmt='%d.%m.%Y %H:%M:%S')
-    
+
     envy_sec = logging.getLogger('secEnvyronment')
     envy_sec.debug('Initialize Application...')
 
@@ -379,47 +381,47 @@ if __name__ == '__main__':
                         Default scanning options will show only infected files.
                         Default path scanning behavior will recursively scan path.
                         If infected file found, it will be scanned using OPSWAT Metadefender.
-                        
+
                         Example: envy_sec.py --scan-file C:\\* 
                             or envy_sec.py -S D:\\SomeFolder\\SomeFile.exe
                         """)
     parser.add_argument('-I', '--scan-ip', type=str, nargs='+', action='append',
                         metavar='IP', help="""
                         IP will be scanned using OPSWAT Metadefender.
-                        
+
                         Example: envy_sec.py --scan-ip 8.8.8.8 
                             or envy_sec.py -I 8.8.8.0\\24
                         """)
     parser.add_argument('-U', '--update', action='store_true', help="""
                         Update mode will update ClamAV Database.
                         (!) To Upgrade ClamAV itself download and install it manually.
-                        
+
                         Example: envy_sec.py --update
                             or envy_sec.py -U
                         """)
     parser.add_argument('-E', '--add-exception', type=str, nargs='+', action='append',
                         metavar='PATH', help="""
                         Add path to exclude list. Files in exclude list will not be scanned by ClamAV.
-                        
+
                         Example: envy_sec.py --add-exception C:\\
                             or envy_sec.py -E D:\\SomeFolder\\SomeFile.exe
                         """)
     parser.add_argument('-R', '--remove-exception', type=str, nargs='+', action='append',
                         metavar='PATH', help="""
                         Remove exception from exclude list.
-                        
+
                         Example: envy_sec.py --remove-exception C:\\
                             or envy_sec.py -R D:\\SomeFolder\\SomeFile.exe
                         """)
     parser.add_argument('-G', '--get-exceptions', action='store_true', help="""
                         List all secEnvyronment exceptions.
-                        
+
                         Example: envy_sec.py --get-exceptions
                             or envy_sec.py -G
                         """)
     parser.add_argument('-W', '--web', action='store_true', help="""
                         Start Web-based GUI.
-                        
+
                         Example: envy_sec.py --web
                             or envy_sec.py -W
                         """)
@@ -427,12 +429,12 @@ if __name__ == '__main__':
     envy_sec.info('Parsing arguments...')
     args = parser.parse_args()
     envy_sec.debug('...parsing succeed.')
-    
+
     if args.web == True:
         pass
     else:
         envy_sec.info('Initialize Command Line Interface (CLI).')
-        envy_cli = ConsoleInterface() ## class will initialize Metadefender and ClamAV automatically.
+        envy_cli = ConsoleInterface() # class will initialize Metadefender and ClamAV automatically.
         envy_sec.info('Initialize work:')
         if args.update is True:
             envy_sec.info('Starting update.')

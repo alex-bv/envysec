@@ -7,13 +7,13 @@ import shlex
 
 class Envyronment_Settings():
     """ Simple envySec settings manager.
-    
+
     Used for configure ClamAV & Metadefender.
     """
 
     def __init__(self, path = 'settings.json', logging_level = 40):
         """ Settings manager is used to verify and fix current envySec settings.
-        
+
         'path' - path to file with secEnvyronment settings.
         'logging_level' - verbosity of logging:
             0 - debug,
@@ -26,7 +26,7 @@ class Envyronment_Settings():
                             filemode = 'a',
                             format='%(asctime)s >> %(name)s - %(levelname)s: %(message)s',
                             datefmt='%d.%m.%Y %H:%M:%S')
-        
+
         self.envySettings = logging.getLogger('envySec SettingsEdit')
         self.envySettings.debug('__init__: Initializing class...')
 
@@ -34,7 +34,7 @@ class Envyronment_Settings():
             self.envySettings.debug('__init__: Reading settings...')
             with open(path, 'r') as settings_f:
                 self.__settings = json.load(settings_f)
-            
+
             self.envySettings.debug('__init__: Setting successfully read.')
             self.envySettings.debug('__init__: Verifying settings...')
             if self.__check_metadefender_api(self.settings["MetadefenderAPI"]) is False:
@@ -45,7 +45,7 @@ class Envyronment_Settings():
                 self.__new_settings = {
                     "MetadefenderAPI": meta_api
                 }
-            
+
                 if self.__write_new_settings(settings = self.__new_settings, path = path) is False:
                     self.envySettings.warning('__init__: Skipping new setting file creation.')
                 else:
@@ -86,10 +86,11 @@ class Envyronment_Settings():
         self.envySettings.debug('settings: starting settings...')
         self.envySettings.info('settings: return settings.')
         try:
-            self.envySettings.debug('settings: Trying to return new settings...')
+            self.envySettings.info('settings: Trying to return new settings...')
             return self.__new_settings
         except AttributeError as attrerr:
-            self.envySettings.debug('settings: Current settins would be returned.')
+            self.envySettings.info('settings: Current settins would be returned.')
+            self.envySettings.debug('settings: AttributeError args: {}.'.format(attrerr.args))
             return self.__settings
 
     @property
@@ -118,7 +119,7 @@ class Envyronment_Settings():
         self.envySettings.debug('clam_config: detecting OS...')
         if os.name == 'posix':
             self.envySettings.info('clam_config: POSIX (Linux) OS detected.')
-            
+
             # Priority: Path
             paths = {
                 1: pathlib.Path("/usr/bin/"),
@@ -139,7 +140,7 @@ class Envyronment_Settings():
                     self.envySettings.debug('clam_config: ClamAV updater path: {}'.format(str(paths[i].joinpath('freshclam'))))
                     self.envySettings.debug('clam_config: Path priority: {}'.format(i))
                     clam_conf["Updater"] = str(paths[i].joinpath('freshclam'))
-    
+
         elif os.name == 'nt':
             self.envySettings.info('clam_config: NT (Windows) OS detected.')
             self.envySettings.debug('clam_config: resolving ClamAV paths...')
@@ -204,7 +205,7 @@ class Envyronment_Settings():
 
         self.envySettings.debug('__check_metadefender_api: starting __check_metadefender_api...')
         self.envySettings.info('__check_metadefender_api: Check API keys length.')
-    
+
         if len(apikey) != 32:
             self.envySettings.critical('__check_metadefender_api: API key length is not valid.')
             self.envySettings.debug('__check_metadefender_api: API key length is not valid.')
@@ -216,7 +217,7 @@ class Envyronment_Settings():
                 if api_char not in "1234567890ABCDEFabcdef":
                     self.envySettings.critical('__check_metadefender_api: API key is not valid.')
                     return False
-        
+
         self.envySettings.info('__check_metadefender_api: API key validated.')
         return True
 
@@ -228,7 +229,7 @@ class Envyronment_Settings():
         """
 
         try:
-            with open(pathlib.path(os.path.basename(os.path.abspath(__file__))).joinpath('settings.json'), 'r') as settings_f:
+            with open(pathlib.Path(os.path.basename(os.path.abspath(__file__))).joinpath('settings.json'), 'r') as settings_f:
                 self.settings = json.load(settings_f)
 
             self.envySettings.debug('__init__: Setting successfully read.')
@@ -240,11 +241,11 @@ class Envyronment_Settings():
                 return self.settings
 
         except FileNotFoundError as fnotfound:
-            self.envySettings.warning('__init__: Failed to open {}. File not found.'.format(path))
+            self.envySettings.warning('__init__: Failed to open {}. File not found.'.format(pathlib.Path(os.path.basename(os.path.abspath(__file__))).joinpath('settings.json')))
             self.envySettings.debug('__init__: FileNotFoundError args: ' + str(fnotfound.args))
             return ''
         except PermissionError as permdenied:
-            self.envySettings.warning('__init__: Failed to open {}. Permissions denied!'.format(path))
+            self.envySettings.warning('__init__: Failed to open {}. Permissions denied!'.format(pathlib.Path(os.path.basename(os.path.abspath(__file__))).joinpath('settings.json')))
             self.envySettings.debug('__init__: PermissionsError args: ' + str(permdenied.args))
             raise
 

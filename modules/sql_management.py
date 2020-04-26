@@ -19,7 +19,7 @@ class ExcludeDB():
 
     def __init__(self, logging_level = 30, database = './modules/exclude.db'):
         """  Manage SQL database.
-        
+
         'database' - path to database with exclusions.
         'logging_level' - verbosity of logging:
             0 - debug,
@@ -242,7 +242,7 @@ class ExcludeDB():
         self.ExcludeDB.info('get_exception: Getting exceptions...')
         self.__connect_db()
         exclude_list = list()
-        
+
         try:
             self.ExcludeDB.debug('get_exception: Getting exclude list;')
             for row in self.__dbcursor.execute("SELECT * FROM exclude;"):

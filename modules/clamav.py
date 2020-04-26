@@ -42,7 +42,7 @@ class ClamAV():
                             filemode = 'a',
                             format='%(asctime)s >> %(name)s - %(levelname)s: %(message)s',
                             datefmt='%d.%m.%Y %H:%M:%S')
-        
+
         self.ClamLog = logging.getLogger('ClamAV')
         self.ClamLog.debug('__init__: Initializing class...')
 
@@ -180,7 +180,7 @@ class ClamAV():
         Method used to call for ClamAV scanner bin.
         It fact, it used to call for ClamAV bin (for example: clamscan.exe on Windows)
         and put it\'s output to pipe.
-        
+
         Return True if scan complete successfully.
         Raise OSError if OS or memory errors occurred.
         Raise ValueError if wrong internal arguments or wrong bin\'s path received.
@@ -191,7 +191,7 @@ class ClamAV():
 
         self.ClamLog.debug('__scan: Scan started.')
         args = list(args)
-        
+
         try: # Bandit report: 'subprocess call - check for execution of untrusted input.', see line 7.
             with subprocess.Popen([self.configuration["Scanner"]] + args, stdout=subprocess.PIPE) as scanp:
                 self.ClamLog.debug('__scan: Subprocess opened. (subprocess.Popen)')

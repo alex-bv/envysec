@@ -41,7 +41,7 @@ class Metadefender():
 
     def __init__(self, apikey, logging_level = 30):
         """ API key might be found on official OPSWAT site: opswat.com
-        
+
         'apikey' - Metadefender API key;
         'logging_level' - verbosity of logging:
             0 - debug,
@@ -49,12 +49,12 @@ class Metadefender():
             50 - critical.
             See 'logging' docs;
         """
-        
+
         logging.basicConfig(level = logging_level,
                             filemode = 'a',
                             format='%(asctime)s >> %(name)s - %(levelname)s: %(message)s',
                             datefmt='%d.%m.%Y %H:%M:%S')
-        
+
         self.MetaLog = logging.getLogger('Metadefender')
         self.MetaLog.debug('__init__: Initializing class...')
 
@@ -320,10 +320,10 @@ class Metadefender():
     def scan_ip(self, target: str) -> dict:
         """ Method send IP string to Metadefender and receive response in JSON.
         Method must receive IP string to scan ('target').
-        
+
         If IP was never scanned or treat not detected, return empty dictionary;
         Else return dictionary with AV name and threat name.
-        
+
         Return looks like:
         scan_data = {
             "IP_spam_base": "Botnet_ip",
@@ -346,7 +346,7 @@ class Metadefender():
         If code is 429, too many scan attempts made or rate limit received.
         Otherwise, see debug log for data received (debug log may content sensitive data).
         """
-        
+
         self.MetaLog.debug('scan_ip: Starting IP scan.')
         self.MetaLog.debug('scan_ip: current target: {}'.format(target))
 
@@ -388,7 +388,7 @@ class Metadefender():
             geo_data["City"] = data["geo_info"]["city"]["name"]
             geo_data["Coordinates"]["Latitude"] = data["geo_info"]["location"]["latitude"]
             geo_data["Coordinates"]["Longitude"] = data["geo_info"]["location"]["longitude"]
-            
+
         except KeyError as kerr:
             self.MetaLog.error('scan_ip: Bad data received. Probably bad request sent.')
             self.MetaLog.debug('scan_ip: KeyError arguments: {}'.format(str(kerr.args)))
@@ -403,7 +403,7 @@ class Metadefender():
         in JSON. Method must receive path to file ('target').
 
         It does not accept dir, only files.
-        
+
         Return 2 dictionaries:
             1st. Scan results. Looks like {'Antivirus': 'File_infection_status', ...},
             2nd. Scan details. Looks like {'Total_Scanners': 42, ...}.
@@ -429,7 +429,7 @@ class Metadefender():
             raise FileNotFoundError('File not found or might not be accessed.', target)
         elif os.path.isdir(target) is True:
             self.MetaLog.critical('scan_file: Failed reading {} binnary. Probably not file, is it a dir?'.format(target))
-            raise IsADirectoryError('Object might not be send, probably object is not file.', permdenied.args)
+            raise IsADirectoryError('Object might not be send, probably object is not file.')
         else:
             self.MetaLog.debug('scan_file: file exists tests passed.')
 
@@ -497,14 +497,14 @@ class Metadefender():
         response = requests.get(url, headers=header)
         self.MetaLog.debug('__request_file_scan_report: Received code: {}'.format(response.status_code))
         self.MetaLog.debug('__request_file_scan_report: Received data: {}'.format(response.text))
-        
+
         self.MetaLog.debug('__request_file_scan_report: checking HTTP {} code...'.format(response.status_code))
         if self.__http_code_check(response.status_code) is False:
             self.MetaLog.info('__request_file_scan_report: Bad HTTP {} code!'.format(response.status_code))
             return False
         else:
             self.MetaLog.debug('__request_file_scan_report: OK HTTP {} code.'.format(response.status_code))
-                    
+
         self.MetaLog.debug('__request_file_scan_report: loads received JSON data.')
         data = json.loads(response.text)
 
@@ -527,7 +527,7 @@ class Metadefender():
     def scan_hash(self, target: str) -> dict:
         """ Perform SHA-256 calculation, send file hash to Metadefender
         and receive response in JSON. Method must receive path to file ('target').
-        
+
         Return 2 dictionaries:
             1st. Scan results. Looks like {'Antivirus': 'File_infection_status', ...},
             2nd. Scan details. Looks like {'Total_Scanners': 42, ...}.
@@ -545,14 +545,14 @@ class Metadefender():
             raise FileNotFoundError('File not found or might not be accessed.', str(target))
         elif os.path.isdir(target) is True:
             self.MetaLog.critical('scan_hash: Failed reading {} binnary. Probably not file, is it dir?'.format(target))
-            raise IsADirectoryError('Object might not be send, probably object is not file.', permdenied.args)
+            raise IsADirectoryError('Object might not be send, probably object is not file.')
         else:
             self.MetaLog.debug('scan_hash: file exists tests passed.')
 
         self.MetaLog.debug('scan_hash: Calculating hash for {}...'.format(target))
         hashsum = self.__get_hash(target)
         self.MetaLog.debug('scan_hash: Hash for {} is {}'.format(target, hashsum))
-        
+
         url = "https://api.metadefender.com/v4/hash/{}".format(hashsum)
         header = {
             "apikey": str(self.apikey)
@@ -562,14 +562,14 @@ class Metadefender():
         response = requests.get(url, headers=header)
         self.MetaLog.debug('scan_hash: Received code: {}'.format(response))
         self.MetaLog.debug('scan_hash: Received data: {}'.format(response.text))
-        
+
         self.MetaLog.debug('scan_hash: checking HTTP {} code...'.format(response.status_code))
         if self.__http_code_check(response.status_code) is False:
             self.MetaLog.info('scan_hash: Bad HTTP {} code!'.format(response.status_code))
             return False
         else:
             self.MetaLog.debug('scan_hash: OK HTTP {} code.'.format(response.status_code))
-        
+
         self.MetaLog.debug('scan_hash: loads received JSON data.')
         data = json.loads(response.text)
         self.MetaLog.debug('scan_hash: received data: {}'.format(str(data)))
@@ -577,7 +577,7 @@ class Metadefender():
         if self.__check_response_data(data, response.status_code) is False:
             self.MetaLog.error('scan_hash: Bad data received. Probably bad request sent.')
             self.MetaLog.debug('scan_hash: __check_response_data returned False.')
-            raise
+            return False
         else:
             self.MetaLog.debug('scan_hash: Scan complete.')
             self.MetaLog.debug('scan_hash: Calling for __request_file_scan_report with argument {}'.format(data["data_id"]))
@@ -627,7 +627,7 @@ class Metadefender():
         Return 2 dictionaries:
             1st. 'scan_result'. Looks like {'Antivirus': 'File_infection_status', ...},
             2nd. 'scan_details'. Looks like {'Total_Scanners': 42, ...}.
-        
+
         If data is not correct, return False.
 
         This function used by scan_hash and scan_file function to format Metadefender output.
@@ -720,13 +720,13 @@ class Metadefender():
                     self.MetaLog.debug('__respond_code_check: code in list;')
                     self.MetaLog.warning('__respond_code_check: {}: {}; {}'.format(code, category, self._metadefender_error_codes[category][err_code]))
                     return False
-        
+
         self.MetaLog.debug('__respond_code_check: code is valid and might be used for scanning;')
         return True
 
     def __http_code_check(self, http_code: int) -> bool:
         """ Check received HTTP response code.
-        
+
         Check if received HTTP response code is OK.
         For filtering codes, it uses list of Metadefender status codes returned by the REST API.
         All possible codes defined in '_http_status_codes'.
@@ -756,7 +756,7 @@ class Metadefender():
                 self.MetaLog.error('__http_code_check: {} HTTP code received, status: {}, description: {}'.format(http_code, self._http_status_codes[http_code]["Status"], self._http_status_codes[http_code]["Description"]))
             elif self._http_status_codes[http_code]['Logging'] == 50:
                 self.MetaLog.critical('__http_code_check: {} HTTP code received, status: {}, description: {}'.format(http_code, self._http_status_codes[http_code]["Status"], self._http_status_codes[http_code]["Description"]))
-        
+
             if 200 <= http_code < 300:
                 self.MetaLog.info('__http_code_check: OK HTTP code received.')
                 return True
