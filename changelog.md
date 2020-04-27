@@ -21,5 +21,7 @@ Version | Changelog
 0.4 | New API migrated, exclude logic fix, endless scan fix;
 
 ## Future plans:
+- [ ] Statistic module
+- [ ] Auto-remove option
 - [ ] Web GUI (django?)
 - [ ] API key encryption? (hash + pass)
