@@ -9,8 +9,8 @@ class DBManager():
     """ Used to control databases.
 
     Available methods:
-        public: __connect_db, __close_db, resolve_path, create_db
-        private: -
+        public: resolve_path, create_db, execute_db
+        private: __connect_db, __close_db
 
     Dependencies:
         built-in: logging, os, pathlib, sqlite3
