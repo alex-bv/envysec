@@ -15,10 +15,11 @@ Version | Changelog
 0.3b | Add ClamAV permissions denied handler;
 0.3b | Fix bad API key, received from settings.json (bad stored key);
 0.3c | Fix non-detected output (like permissions errors);
-0.3c | Exclude List (sqlite3 db, 'exclude.db')
+0.3c | Exclude List (sqlite3, 'database.sqlite3')
 0.3d | Exclude List fix;
 0.3d | Apply basic SQL security setting;
 0.4 | New API migrated, exclude logic fix, endless scan fix;
+0.4a | SQL management rework.
 
 ## Future plans:
 - [ ] Statistic module
