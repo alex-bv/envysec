@@ -19,7 +19,7 @@ except (ModuleNotFoundError, ImportError):
 class ConsoleInterface():
     """ envySec command line interface class.
     Used to perform scans and update from command-line.
-    
+
     Receive Metadefender API key, ClamAV path to config.
     Required packages (dependencies): 
         inherit dependencies from ClamAV class, Metadefender class and SQL exclude database management class.
@@ -372,7 +372,7 @@ if __name__ == '__main__':
     envy_sec.debug('Initialize Application...')
 
     parser = argparse.ArgumentParser(prog='secEnvyronment', epilog="""
-                                    (c) EnvySec Dev, 2019.
+                                    (c) https://github.com/alex-bv, 2020.
                                     """, description="""
                                     This software is used to simplify ClamAV usage and automatize detect verification using Metadefender service.
                                     """)
