@@ -274,7 +274,7 @@ class ClamAV():
         self.ClamLog.debug('__call_proc: Creating thread.')
         work_thread = threading.Thread(target = work, args = args, daemon = True)
         self.ClamLog.debug('__call_proc: Starting thread.')
-        work_thread.join() # Use 'join' to prevent endless scan
+        work_thread.start()
         self.ClamLog.debug('__call_proc: Work thread Initialized.')
 
         self.ClamLog.debug('__call_proc: Looking for output.')
