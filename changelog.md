@@ -13,6 +13,7 @@ Version    | Changelog
 0.4        | New API migrated, exclude logic rework.
 0.4a       | SQL management rework.
 2020-07.r1 | New release naming, fixes, URL & domain scan implemented.
+2020-07.r2 | Bug Fixes, minor UI updates
 
 ## Future plans:
 - [ ] Statistic module.
