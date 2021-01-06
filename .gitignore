@@ -11,6 +11,9 @@ secEnvyronment.log
 /exclude.db
 exclude.db
 
+.vs/
+.vscode/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
