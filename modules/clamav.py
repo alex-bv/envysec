@@ -1,9 +1,7 @@
-import datetime
 import logging
 import os
 import pathlib
 import queue
-import sqlite3
 import subprocess # WARNING, POSSIBLE SECURITY ISSUE: Bandit report: 'Consider possible security implications associated with subprocess module.'
 import threading
 
@@ -17,11 +15,10 @@ class ClamAV():
         private: __scan, __update, __call_proc, __resolve_path
 
     Required packages (dependencies): 
-        built-in: datetime, logging, os, pathlib, queue, sqlite3, subprocess, threading
+        built-in: logging, os, pathlib, queue, subprocess, threading
         3-d party: -
 
     To perform a scan, it uses sys.Popen to call for a ClamAV bin with a customized args.
-    For storring exlclude database uses sqlite3.
 
     ClamAV official site (2018): www.clamav.net
     Cisco (ClamAV owner and maintainer) official site (2018): www.cisco.com
