@@ -3,21 +3,22 @@ import logging
 import os
 import pathlib
 import sqlite3
+import shlex
 
 
 class DBManager():
     """ Used to control databases.
 
     Available methods:
-        public: resolve_path, create_db, execute_db
-        private: __connect_db, __close_db
+        public: execute_db
+        private: __connect_db, __close_db, __create_db
 
     Dependencies:
-        built-in: logging, os, pathlib, sqlite3
+        built-in: logging, os, pathlib, sqlite3, shlex
         3-d party: -
     """
 
-    def __init__(self, logging_level = 30, database = './modules/database.sqlite3'):
+    def __init__(self, logging_level = 30, database = './modules/exclude.db'):
         """ Manage SQL database.
 
         'database' - path to database with exclusions.
@@ -30,90 +31,104 @@ class DBManager():
 
         logging.basicConfig(level = logging_level,
                             filemode = 'a',
-                            format='%(asctime)s >> %(name)s - %(levelname)s: %(message)s',
+                            format=f"%(asctime)s - [%(levelname)s] - %(name)s - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s",
                             datefmt='%d.%m.%Y %H:%M:%S')
 
         self.DBManager = logging.getLogger('DBManager')
-        self.DBManager.debug('__init__: Initializing class...')
+        self.DBManager.debug('Initializing class...')
 
-        self.DBManager.debug('__init__: Checking database existence...')
+        self.DBManager.debug('Checking database existence...')
         self.database = pathlib.Path('.').resolve().joinpath(database)
         if self.database.exists() is True:
-            self.DBManager.info('__init__: database found.')
-        elif self.create_db() is False:
-            self.DBManager.critical('__init__: database path {} not found!'.format(self.database))
+            self.DBManager.info('Database found.')
+        elif self.__create_db() is False:
+            self.DBManager.critical('Database path {} not found!'.format(self.database))
             raise FileNotFoundError('Database path {} not found!'.format(self.database))
         else:
-            self.DBManager.error('__init__: database path {} not found!'.format(self.database))
-            self.DBManager.info('__init__: {} database created.'.format(self.database))
+            self.DBManager.error('Database path {} not found!'.format(self.database))
+            self.DBManager.info('{} database created.'.format(self.database))
 
-        self.DBManager.debug('__init__: Class initialized.')
+        self.DBManager.debug('Class initialized.')
 
 
     def __connect_db(self) -> bool:
         """ Connect to secEnvyronment database.
         To close connection use '__close_db';
 
-        Default database filename is 'database.sqlite3' (./modules/database.sqlite3).
-        Default database.sqlite3 have table 'Exclusion', 'Statistic'.
+        Default database filename is 'exclude.db' (./modules/exclude.db).
+        Default exclude.db have table 'Exclusion', 'Statistic'.
+
+        Note: this method cant be used to initialize database.
         """
 
-        self.DBManager.info('__connect_db: Connecting to Exclude database...')
-        self.DBManager.debug('__connect_db: Trying {} ...'.format(str(self.database)))
+        self.DBManager.info('Connecting to Exclude database...')
+        self.DBManager.debug('Trying {} ...'.format(str(self.database)))
 
         if self.database.exists() is True:
             try:
                 self.exclude_connect = sqlite3.connect(str(self.database))
                 self.dbcursor = self.exclude_connect.cursor()
+
             except sqlite3.NotSupportedError as sql_bad_db_err:
-                self.DBManager.warning('__connect_db: Wrong database type detected!')
-                self.DBManager.debug('__connect_db: Database error log: {}'.format(str(sql_bad_db_err.args)))
+                self.DBManager.warning('Wrong database type detected!')
+                self.DBManager.debug('Database error log: {}'.format(str(sql_bad_db_err.args)))
                 return False
             except sqlite3.DataError as sql_data_err:
-                self.DBManager.warning('__connect_db: Database error occurred!')
-                self.DBManager.debug('__connect_db: Database error log: {}'.format(str(sql_data_err.args)))
+                self.DBManager.warning('Database error occurred!')
+                self.DBManager.debug('Database error log: {}'.format(str(sql_data_err.args)))
                 return False
             except sqlite3.IntegrityError as sql_broken_db_err:
-                self.DBManager.warning('__connect_db: Database integrity compromised.')
-                self.DBManager.debug('__connect_db: Database error log: {}'.format(str(sql_broken_db_err.args)))
+                self.DBManager.warning('Database integrity compromised.')
+                self.DBManager.debug('Database error log: {}'.format(str(sql_broken_db_err.args)))
+                return False
+            except sqlite3.OperationalError as sql_operation_err:
+                self.DBManager.warning('Database integrity compromised.')
+                self.DBManager.debug('Database error log: {}'.format(str(sql_operation_err.args)))
+                return False
+            except PermissionError as permissions_denied:
+                self.DBManager.warning('Permissions denied.')
+                self.DBManager.debug('Database error log: {}'.format(str(permissions_denied.args)))
                 return False
         else:
-            self.DBManager.warning('__connect_db: Database does not exist or permissions denied.')
-            self.DBManager.debug('__connect_db: Can\'t connect to {}'.format(str(self.database)))
+
+            self.__create_db()
+
+            self.DBManager.warning('Database does not exist or permissions denied.')
+            self.DBManager.debug('Can\'t connect to {}'.format(str(self.database)))
             return False
 
-        self.DBManager.debug('__connect_db: Connected.')
+        self.DBManager.debug('Connected.')
         return True
 
     def __close_db(self) -> bool:
         """ Close connection to secEnvyronment database.
         To open connection use __connect_db;
 
-        Default database filename is 'database.sqlite3' (./modules/database.sqlite3).
-        Default database.sqlite3 have table 'Exclusion', 'Statistic'.
+        Default database filename is 'exclude.db' (./modules/exclude.db).
+        Default exclude.db have table 'Exclusion', 'Statistic'.
         """
 
-        self.DBManager.info('__close_db: Closing Database connection...')
+        self.DBManager.info('Closing Database connection...')
 
         try:
-            self.DBManager.debug('__close_db: Commiting...')
+            self.DBManager.debug('Commiting...')
             self.exclude_connect.commit()
-            self.DBManager.debug('__close_db: Closing database...')
+            self.DBManager.debug('Closing database...')
             self.dbcursor.close()
         except sqlite3.ProgrammingError as sql_programming_err:
-            self.DBManager.warning('__close_db: Programming error occurred!')
-            self.DBManager.debug('__close_db: Database error log: {}'.format(str(sql_programming_err.args)))
+            self.DBManager.warning('Programming error occurred!')
+            self.DBManager.debug('Database error log: {}'.format(str(sql_programming_err.args)))
             return False
         except sqlite3.OperationalError as sql_bad_operation_err:
-            self.DBManager.warning('__close_db: Operational error occurred!')
-            self.DBManager.debug('__close_db: Database error log: {}'.format(str(sql_bad_operation_err.args)))
+            self.DBManager.warning('Operational error occurred!')
+            self.DBManager.debug('Database error log: {}'.format(str(sql_bad_operation_err.args)))
             return False
 
-        self.DBManager.debug('__close_db: Complete.')
+        self.DBManager.debug('Complete.')
         return True
 
 
-    def create_db(self, structure = {'Exclusion': ['Path', 'Date'], 'Statistic': ['Found', 'Date', 'TotalReports']}) -> bool:
+    def __create_db(self, structure = {'Exclusion': ['Path', 'Date'], 'Statistic': ['Found', 'Date', 'TotalReports']}) -> bool:
         """ Create database.
 
         Used to create sqlite database.
@@ -138,7 +153,7 @@ class DBManager():
         If database created and available to connection, return True.
         """
 
-        self.DBManager.debug('create_db: Initialize create_db...')
+        self.DBManager.debug('Initialize __create_db...')
 
         def __create_command(structure: dict) -> str:
             """ Create SQL command to create structure.
@@ -147,52 +162,62 @@ class DBManager():
             Keys are table names to be created,
             Values are columns to be created.
 
-            Return command string.
+            Return command string to be sent to SQL exec.
             """
 
-            self.DBManager.debug('create_db:__create_command: Creating command, received structure: {}'.format(structure))
+            self.DBManager.debug('Creating command, received structure: {}'.format(structure))
             for table in structure:
-                command = 'CREATE TABLE IF NOT EXISTS {} ('.format(table)
+                command = 'CREATE TABLE IF NOT EXISTS'
+                command += ' {} ('.format(shlex.quote(table))
                 for column in structure[table]:
-                    command.join('{} VARCHAR (255) NOT NULL,')
-                command.join(', PRIMARY KEY ({}))'.format(structure[table][0]))
+                    command += '{} VARCHAR (255) NOT NULL, '.format(shlex.quote(column))
+                command += 'PRIMARY KEY ({})); '.format(structure[table][0])
+                self.DBManager.debug('Created command: {}'.format(shlex.quote(command)))
+                yield command
 
-                if table is not structure[-1]:
-                    command.join(' / ')
-            else:
-                command.join(';')
-                self.DBManager.debug('create_db:__create_command: Created command: {}'.format(command))
-                return command
-
-        self.DBManager.debug('create_db: Checking database existence.')
+        self.DBManager.debug('Checking database existence.')
         if os.path.exists(self.database) is False:
-            self.DBManager.warning('create_db: Database is not found!')
-            self.DBManager.debug('create_db: Trying to create database:')
+            self.DBManager.info('Database is not found!')
+            self.DBManager.debug('Trying to create database:')
+            self.DBManager.debug('Connecting...')
+            try:
+                db_connection = sqlite3.connect(self.database)
+            except FileExistsError:
+                self.DBManager.warning('Filename {} already taken.'.format(self.database))
+                return False
+            except PermissionError:
+                self.DBManager.warning('Can\'t create database, permissions denied.')
+                return False
 
-            self.DBManager.debug('create_db: Connecting...')
-            db_connector = sqlite3.connect(self.database)
-            self.DBManager.debug('create_db: Init cursor...')
-            db_cursor = db_connector.cursor()
-            self.DBManager.debug('create_db: Creating table...')
-            db_cursor.execute(__create_command(structure)) # SQL
-            self.DBManager.debug('create_db: Done without errors.')
+            self.DBManager.debug('Init cursor...')
+            db_cursor = db_connection.cursor()
+            self.DBManager.debug('Creating table...')
+            try:
+                for command in __create_command(structure):
+                    db_cursor.execute(command) # SQL, insecure
+                    db_connection.commit()
+                    db_connection.close()
+            except sqlite3.ProgrammingError: #?
+                self.DBManager.warning('Programming error, trying to continue...')
+            else:
+                self.DBManager.debug('Done without errors.')
         else:
-            self.DBManager.info('create_db: Database is already exists.')
+            self.DBManager.info('Database is already exists.')
             return False
 
-        self.DBManager.debug('create_db: Checking database.')
+        self.DBManager.debug('Checking database.')
         if self.__connect_db() is True:
-            self.DBManager.debug('create_db: Database check passed witout errors, closing.')
+            self.DBManager.debug('Database check passed witout errors, closing.')
             self.__close_db()
-            self.DBManager.debug('create_db: Database closed.')
+            self.DBManager.debug('Database closed.')
         else:
-            self.DBManager.error('create_db: Cannot connect database!')
+            self.DBManager.error('Cannot connect database!')
             return False
 
-        self.DBManager.debug('create_db: Database created.')
+        self.DBManager.debug('Database created.')
         return True
 
-    def execute_db(self, command: str, values = None) -> bool:
+    def execute_db(self, command: str, values: tuple = None) -> bool:
         """ Execute SQL command.
 
         Default database structure is consist of 2 tables:
@@ -209,76 +234,48 @@ class DBManager():
         'TotalReports' - is a number of infected file reports.
         """
 
-        self.DBManager.info('execute_db: Executing...') # TODO: make syntax to be alike cursor.execute('command (?)', value)
+        self.DBManager.info('Executing...')
         if self.__connect_db() is True:
             try:
-                self.DBManager.info('execute_db: Adding exception to database.') # TODO: make it yield output
-                self.DBManager.debug('execute_db: Verifying path...')
+                self.DBManager.info('Adding exception to database.') # TODO: make it yield output
+                self.DBManager.debug('Verifying path...')
 
                 output = []
                 if values != None and type(values) == tuple:
-                    self.DBManager.debug('execute_db: executing {} with arguments {}'.format(command, values))
+                    self.DBManager.debug('Executing {} with arguments {}'.format(command, values))
                     for out in self.dbcursor.execute(command, values): # SQL
                         output += out
-                    self.DBManager.debug('execute_db: Executed;')
-                elif type(values) != tuple:
-                    self.DBManager.critical('execute_db: Cant execute command!')
-                    self.DBManager.error('execute_db: Bad SQL values received: {}, turple should be received!'.format(values))
-                    raise TypeError('execute_db: Bad SQL command arguments!')
+                    self.DBManager.debug('Executed;')
                 elif values == None:
-                    self.DBManager.debug('execute_db: executing {} with no arguments.'.format(command))
+                    self.DBManager.debug('Executing {} with no arguments.'.format(command))
                     for out in self.dbcursor.execute(command): # SQL
+                        self.DBManager.debug('Received: {};'.format(out))
                         output += out
-                    self.DBManager.debug('execute_db: Executed;')
+                    self.DBManager.debug('Executed;')
+                elif type(values) != tuple:
+                    self.DBManager.critical('Cant execute command!')
+                    self.DBManager.error('Bad SQL values received: {}, turple should be received!'.format(values))
+                    raise TypeError('Bad SQL command arguments type!')
                 else:
-                    self.DBManager.error('execute_db: Error ocuired, wont execute SQL command.')
-                    self.DBManager.debug('execute_db: Bad SQL command: {}.'.format(command))
+                    self.DBManager.error('Error occured, wont execute SQL command.')
+                    self.DBManager.debug('Bad SQL command: {}.'.format(command))
 
             except (sqlite3.ProgrammingError, sqlite3.OperationalError) as sql_err:
-                self.DBManager.warning('execute_db: Failed execute SQL command.')
-                self.DBManager.debug('execute_db: Database error log: {}'.format(str(sql_err.args)))
+                self.DBManager.warning('Failed execute SQL command.')
+                self.DBManager.debug('Database error log: {}'.format(str(sql_err.args)))
                 if self.__close_db() is True:
-                    self.DBManager.debug('execute_db: Database closed secessfully.')
-                    return False
+                    self.DBManager.debug('Database closed secessfully.')
+                    return []
                 else:
                     raise
             finally:
-                self.DBManager.debug('execute_db: Database management complete.')
-                self.__close_db()
+                self.DBManager.debug('Database management complete.')
                 if self.__close_db() is True:
-                    return (True, output)
+                    return output
+                else:
+                    return []
         else:
-            return False
-
-
-    def resolve_path(self, path: str) -> str:
-        """ Resolve path string to absolute path.
-
-        'path' - is a path to file or dir (absolute or symlink) to be resolved.
-
-        Used to resolve symlinks and return absolute path.
-        """
-
-        self.DBManager.info('resolve_path: Starting path resolver.')
-        self.DBManager.debug('resolve_path: Resolving {}...'.format(path))
-
-        try:
-            path = pathlib.Path(path)
-        except NotImplementedError as path_resolve_bad_python_err:
-            self.DBManager.warning('resolve_path: Failed to resolve {}.'.format(path))
-            self.DBManager.info('resolve_path: TIP: Probably OS is not supported.')
-            self.DBManager.debug('resolve_path: NotImplementedError occurred, log: {}'.format(str(path_resolve_bad_python_err.args)))
-            self.DBManager.info('resolve_path: Trying to run anyway...')
-            return str(path)
-        except TypeError as path_resolve_bad_os_err:
-            self.DBManager.warning('resolve_path: Failed to resolve {}.'.format(path))
-            self.DBManager.info('resolve_path: TIP: Probably wrong OS type detected.')
-            self.DBManager.debug('resolve_path: TypeError occurred, log: {}'.format(str(path_resolve_bad_os_err.args)))
-            self.DBManager.info('resolve_path: Trying to run anyway...')
-            return str(path)
-        finally:
-            self.DBManager.debug('resolve_path: Path converted. Return {}'.format(str(path.expanduser().resolve())))
-            return str(path.expanduser().resolve())
+            return []
 
 
 
@@ -286,7 +283,7 @@ class ExcludeDB(DBManager):
     """ Used to manage 'Exclusion' table in database.
 
     Available methods:
-        public: add_exception, remove_exception, get_exception
+        public: add_exception, remove_exception, get_exceptions
         private: -
 
     Dependencies:
@@ -294,9 +291,9 @@ class ExcludeDB(DBManager):
         3-d party: -
     """
 
-    def __init__(self, logging_level = 30, database = './modules/database.sqlite3'):
+    def __init__(self, logging_level = 30, database = './modules/exclude.db'):
         """ Manage exclude list.
-        Exclude list is located in './modules/database.sqlite3', in table 'Exclusion'.
+        Exclude list is located in './modules/exclude.db', in table 'Exclusion'.
         'Path' is a primary key in 'Exclusion' table.
 
         'database' - path to database with exclusions.
@@ -311,93 +308,86 @@ class ExcludeDB(DBManager):
 
         logging.basicConfig(level = logging_level,
                             filemode = 'a',
-                            format='%(asctime)s >> %(name)s - %(levelname)s: %(message)s',
+                            format=f"%(asctime)s - [%(levelname)s] - %(name)s - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s",
                             datefmt='%d.%m.%Y %H:%M:%S')
 
         self.ExcludeDB = logging.getLogger('ExcludeDB')
-        self.ExcludeDB.debug('__init__: Initializing class...')
+        self.ExcludeDB.debug('Initializing class...')
 
-        self.ExcludeDB.debug('__init__: Checking database existence...')
+        self.ExcludeDB.debug('Checking database existence...')
         self.database = pathlib.Path('.').resolve().joinpath(database)
         if self.database.exists() is True:
-            self.ExcludeDB.info('__init__: database found.')
-        elif DBManager.create_db(self) is False:
-            self.ExcludeDB.critical('__init__: database path {} not found!'.format(self.database))
+            self.ExcludeDB.info('database found.')
+        elif DBManager.__create_db(self) is False:
+            self.ExcludeDB.critical('database path {} not found!'.format(self.database))
             raise FileNotFoundError('Database path {} not found!'.format(self.database))
         else:
-            self.ExcludeDB.error('__init__: database path {} not found!'.format(self.database))
-            self.ExcludeDB.info('__init__: {} database created.'.format(self.database))
+            self.ExcludeDB.error('database path {} not found!'.format(self.database))
+            self.ExcludeDB.info('{} database created.'.format(self.database))
 
-        self.ExcludeDB.debug('__init__: Class initialized.')
+        self.ExcludeDB.debug('Class initialized.')
 
 
     def add_exception(self, path: str) -> bool:
         """ Add path to exclude list.
-        Exclude list is located in './modules/database.sqlite3', in table 'Exclusion'.
+        Exclude list is located in './modules/exclude.db', in table 'Exclusion'.
 
         'path' - is a path to file or folder to be added to exclude list.
 
-        Used to connect and add path to 'database.sqlite3'.
+        Used to connect and add path to 'exclude.db'.
         If 'Path' added, date will be automatically appended into table.
         """
 
-        self.ExcludeDB.info('add_exception: Adding exception...')
-        path = DBManager.resolve_path(self, path)
+        self.ExcludeDB.info('Adding exception...')
+        path = self.__resolve_path(path)
 
         try:
-            self.ExcludeDB.info('add_exception: Adding exception to database.')
-            self.ExcludeDB.debug('add_exception: Verifying path...')
+            self.ExcludeDB.info('Adding exception to database.')
+            self.ExcludeDB.debug('Verifying path...')
             if os.path.exists(path) is True:
-                self.ExcludeDB.debug('add_exception: Add exception: {}'.format(path))
-                DBManager.execute_db("INSERT INTO Exclusion(Path) VALUES (?, ?)", values = (path, datetime.datetime.now(),)) # SQL
+                self.ExcludeDB.debug('Add exception: {}'.format(path))
+                self.execute_db(command = "INSERT INTO Exclusion VALUES (?, ?)", values = (path, datetime.datetime.now(),)) # SQL
             else:
-                self.ExcludeDB.warning('add_exception: {} does not exists;'.format(path))
+                self.ExcludeDB.warning('{} does not exists;'.format(path))
                 return False
         except (sqlite3.ProgrammingError, sqlite3.OperationalError) as sql_err:
-            self.ExcludeDB.warning('add_exception: Failed execute SQL command.')
-            self.ExcludeDB.debug('add_exception: Database error log: {}'.format(str(sql_err.args)))
+            self.ExcludeDB.warning('Failed execute SQL command.')
+            self.ExcludeDB.debug('Database error log: {}'.format(str(sql_err.args)))
             return False
         finally:
-            self.ExcludeDB.debug('add_exception: Database management complete.')
+            self.ExcludeDB.debug('Database management complete.')
             return True
 
     def remove_exception(self, path: str) -> bool:
         """ Remove path from exclude list.
-        Exclude list is located in './modules/database.sqlite3', in table 'Exclusion'.
+        Exclude list is located in './modules/exclude.db', in table 'Exclusion'.
 
         'path' - is a path to file or folder to be removed from exclude list.
 
-        Used to connect and remove path from 'database.sqlite3'.
+        Used to connect and remove path from 'exclude.db'.
         'Path' is a primary key in 'Exclusion' table.
         """
 
-        self.ExcludeDB.info('remove_exception: Removing exception...')
-        path = DBManager.resolve_path(self, path)
+        self.ExcludeDB.info('Removing exception...')
+        path = self.__resolve_path(path)
 
         try:
-            self.ExcludeDB.info('remove_exception: Removing {} from database.'.format(path))
-            self.ExcludeDB.debug('remove_exception: Trying to remove exception: {}'.format(path))
-
-            for out in DBManager.execute_db("SELECT 1 FROM Exclusion WHERE Path=(?);", values = (path,)): # SQL
-                if out == (1,):
-                    DBManager.execute_db("DELETE FROM Exclusion WHERE Path=(?);", values = (path,)) # SQL
-                    self.ExcludeDB.info('remove_exception: {} successfully removed.'.format(path))
-                else:
-                    self.ExcludeDB.warning('remove_exception: Failed to remove {} from database.'.format(path))
-                    self.ExcludeDB.info('remove_exception: {} not in database.'.format(path))
-                    return False
+            self.ExcludeDB.info('Removing {} from database.'.format(path))
+            self.ExcludeDB.debug('Trying to remove exception: {}'.format(path))
+            self.execute_db("DELETE FROM Exclusion WHERE Path=(?);", values = (path,)) # SQL
+            self.ExcludeDB.info('{} successfully removed.'.format(path))
         except(sqlite3.ProgrammingError, sqlite3.OperationalError) as sql_err:
-            self.ExcludeDB.warning('remove_exception: Failed execute SQL command.')
-            self.ExcludeDB.debug('remove_exception: Database error log: {}'.format(str(sql_err.args)))
+            self.ExcludeDB.warning('Failed execute SQL command.')
+            self.ExcludeDB.debug('Database error log: {}'.format(str(sql_err.args)))
             return False
         finally:
-            self.ExcludeDB.debug('remove_exception: Database management complete.')
+            self.ExcludeDB.debug('Database management complete.')
             return True
 
-    def get_exception(self) -> list:
+    def get_exceptions(self) -> list:
         """ Get all items in exclude list.
 
-        Used to connect and get list from 'database.sqlite3'.
+        Used to connect and get list from 'exclude.db'.
 
         Executing 'for ... in ... SELECT * FROM Exclusion' will return tuple;
         By design, only 1 object in tuple will be counted, other will be skipped.
@@ -406,22 +396,46 @@ class ExcludeDB(DBManager):
         Return None if database error occurred.
         """
 
-        self.ExcludeDB.info('get_exception: Getting exceptions...')
-        exclude_list = list()
+        self.ExcludeDB.info('Getting exceptions...')
+        exclude_list = {}
 
         try:
-            self.ExcludeDB.debug('get_exception: Getting exclude list;')
-            for row in DBManager.execute_db("SELECT * FROM Exclusion;"): # SQL
-                self.ExcludeDB.info('get_exception: In exclude: {}, {}'.format(row[0], row[1]))
-                self.ExcludeDB.debug('get_exception: Raw exception line: {}'.format(str(row)))
-                exclude_list += [row[0]] # TODO: make both values (path and time) packed
+            self.ExcludeDB.debug('Getting exclude list;')
+            exclude_list = dict(zip(self.execute_db(command = "SELECT Path FROM Exclusion;"), self.execute_db(command = "SELECT Date FROM Exclusion;"))) # SQL
+            self.ExcludeDB.debug('Total exclude list: {}'.format(exclude_list))
         except (sqlite3.ProgrammingError, sqlite3.OperationalError) as sql_err:
-            self.ExcludeDB.warning('get_exception: Failed execute SQL command.')
-            self.ExcludeDB.debug('get_exception: Database error log: {}'.format(str(sql_err.args)))
-            return []
+            self.ExcludeDB.warning('Failed execute SQL command.')
+            self.ExcludeDB.debug('Database error log: {}'.format(str(sql_err.args)))
+            return {}
         finally:
-            self.ExcludeDB.debug('get_exception: Database management complete.')
-            if exclude_list != []:
-                return exclude_list
-            else:
-                return []
+            self.ExcludeDB.debug('Database management complete.')
+            return exclude_list
+
+    def __resolve_path(self, path: str) -> str:
+        """ Resolve path string to absolute path.
+
+        'path' - is a path to file or dir (absolute or symlink) to be resolved.
+
+        Used to resolve symlinks and return absolute path.
+        """
+
+        self.DBManager.info('Starting path resolver.')
+        self.DBManager.debug('Resolving {}...'.format(path))
+
+        try:
+            path = pathlib.Path(path)
+        except NotImplementedError as path_resolve_bad_python_err:
+            self.DBManager.warning('Failed to resolve {}.'.format(path))
+            self.DBManager.info('TIP: Probably OS is not supported.')
+            self.DBManager.debug('NotImplementedError occurred, log: {}'.format(str(path_resolve_bad_python_err.args)))
+            self.DBManager.info('Trying to run anyway...')
+            return str(path)
+        except TypeError as path_resolve_bad_os_err:
+            self.DBManager.warning('Failed to resolve {}.'.format(path))
+            self.DBManager.info('TIP: Probably wrong OS type detected.')
+            self.DBManager.debug('TypeError occurred, log: {}'.format(str(path_resolve_bad_os_err.args)))
+            self.DBManager.info('Trying to run anyway...')
+            return str(path)
+        finally:
+            self.DBManager.debug('Path converted. Return {}'.format(str(path.expanduser().resolve())))
+            return str(path.expanduser().resolve())
