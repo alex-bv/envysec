@@ -251,7 +251,7 @@ class Envyronment_Settings():
             self.envySettings.debug('PermissionsError args: ' + str(permdenied.args))
             raise
 
-    def __write_new_settings(self, dict, path: str) -> bool:
+    def __write_new_settings(self, settings: dict, path: str) -> bool:
         """ Create new setting file.
         This function used to write new settings (dict) to file (path to).
 
@@ -263,7 +263,7 @@ class Envyronment_Settings():
 
         try:
             with open(path, 'w') as new_settings_f:
-                json.dump(self.settings, new_settings_f)
+                json.dump(settings, new_settings_f)
         except FileExistsError as fexists:
             self.envySettings.warning('__write_new_Failed to write into {}. File already exists.'.format(path))
             self.envySettings.debug('__write_new_FileExistsError args: ' + str(fexists.args))
