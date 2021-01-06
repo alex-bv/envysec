@@ -40,19 +40,19 @@ class ClamAV():
 
         logging.basicConfig(level = logging_level,
                             filemode = 'a',
-                            format='%(asctime)s >> %(name)s - %(levelname)s: %(message)s',
+                            format=f"%(asctime)s - [%(levelname)s] - %(name)s - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s",
                             datefmt='%d.%m.%Y %H:%M:%S')
 
         self.ClamLog = logging.getLogger('ClamAV')
-        self.ClamLog.debug('__init__: Initializing class...')
+        self.ClamLog.debug('Initializing class...')
 
         self.configuration = config
         self.clamav_queue = queue.Queue()
 
-        self.ClamLog.debug('__init__: Class initialized.')
+        self.ClamLog.debug('Class initialized.')
 
 
-    def scan(self, targets: list, args = ['-i', '-r', '--no-summary', '--alert-exceeds-max=no'], exclude = None) -> "yield str":
+    def scan(self, targets: list, args = ['-i', '-r', '--no-summary', '--alert-exceeds-max=no'], exclude = None) -> str:
         """ Method used to perform a ClamAV scan.
 
         'targets' - list of paths to be scanned;
@@ -77,7 +77,7 @@ class ClamAV():
             do not show 'exceeds max' errors (--alert-exceeds-max=no).
         """
 
-        self.ClamLog.debug('scan: Starting scan.')
+        self.ClamLog.debug('Starting scan.')
 
         def __parse_line(line: str) -> bool:
             """ Check if 'line' report thread found.
@@ -87,15 +87,15 @@ class ClamAV():
             Return False if one of conditions was not met.
             """
 
-            self.ClamLog.debug('scan: __parse_line: Checking {}'.format(line))
+            self.ClamLog.debug('Checking {}'.format(line))
             if line.strip().endswith(' FOUND') is True and os.path.exists(line.split(': ')[0]) is True:
-                self.ClamLog.debug('scan: __parse_line: {} met conditions, return True.'.format(line))
+                self.ClamLog.debug('{} met conditions, return True.'.format(line))
                 return True
             else:
-                self.ClamLog.debug('scan: __parse_line: {} have not met conditions, return False.'.format(line))
+                self.ClamLog.debug('{} have not met conditions, return False.'.format(line))
                 return False
 
-        self.ClamLog.debug('scan: Retrieving exceptions...')
+        self.ClamLog.debug('Retrieving exceptions...')
         if exclude is not None and exclude != []:
             exception_list = str() # Used to translate exclude elements to string; example: exclude = ['a/b/c'] -> except_list = '--exclude=a/b/c'
             for exception in exclude:
@@ -106,54 +106,54 @@ class ClamAV():
                 elif os.path.isfile(exception_path) is True:
                     exception_list += '--exclude={}'.format(exception_path)
                 elif os.path.islink(exception_path) is True:
-                    self.ClamLog.info('scan: {} is a symbolic link, trying to follow...'.format(exception_path))
+                    self.ClamLog.info('{} is a symbolic link, trying to follow...'.format(exception_path))
                     exception_list += '--exclude={}'.format(exception_path)
                 elif os.path.ismount(exception_path) is True:
-                    self.ClamLog.info('scan: {} is a mount point, trying to continue...'.format(exception_path))
+                    self.ClamLog.info('{} is a mount point, trying to continue...'.format(exception_path))
                     exception_list += '--exclude={}'.format(exception_path)
                 else:
-                    self.ClamLog.warning('scan: type of {} is not defined, trying to continue...'.format(exception_path))
+                    self.ClamLog.warning('type of {} is not defined, trying to continue...'.format(exception_path))
                     exception_list += '--exclude={}'.format(exception_path)
                 exception_list += ' ' # Add space, ClamAV does\'nt support comma-separated lists.
             args.append(exception_list.strip()) # Strip whitespace at the end;
 
-        self.ClamLog.debug('scan: Checking targets...')
+        self.ClamLog.debug('Checking targets...')
         targets = [self.__resolve_path(target) for target in targets]
 
         _targets = list() # Prevent empty 'targets' list to be insert in 'args'.
         for target in targets: 
             if os.path.exists(target) is False:
-                self.ClamLog.info('scan: {} does not exists, so could not be scanned.'.format(target))
+                self.ClamLog.info('{} does not exists, so could not be scanned.'.format(target))
             elif target in exclude:
-                self.ClamLog.info('scan: {} is in exclude list, so will not be scanned.'.format(target))
+                self.ClamLog.info('{} is in exclude list, so will not be scanned.'.format(target))
             else:
-                self.ClamLog.debug('scan: {} added to scan list.'.format(target))
+                self.ClamLog.debug('{} added to scan list.'.format(target))
                 _targets.append(target)
 
         if len(_targets) > 0: # Prevent empty 'targets' list to be insert in 'args'.
             for target in _targets:
                 args.insert(0, target)
         else:
-            self.ClamLog.error('scan: No targets to be scanned has been specified!')
-            self.ClamLog.info('scan: Maybe target in exclude list or does not exists?')
+            self.ClamLog.error('No targets to be scanned has been specified!')
+            self.ClamLog.info('Maybe target in exclude list or does not exists?')
             raise ValueError('''
                             No targets to be scanned has been specified!
                             Maybe targets in exclude list or not exists?
                         ''')
 
-        self.ClamLog.debug('scan: Starting work...')
+        self.ClamLog.debug('Starting work...')
         for line in self.__call_proc(self.__scan, args = args):
 
-            self.ClamLog.debug('scan: Init __parse_line...')
+            self.ClamLog.debug('Init __parse_line...')
             if __parse_line(line) is True:
-                self.ClamLog.debug('scan: __parse_line: line reports True.')
-                self.ClamLog.warning('scan: FOUND: {}'.format(str(line)))
+                self.ClamLog.debug('line reports True.')
+                self.ClamLog.warning('FOUND: {}'.format(str(line)))
                 yield line
             else:
-                self.ClamLog.debug('scan: __parse_line: line reports False.')
+                self.ClamLog.debug('line reports False.')
                 self.ClamLog.warning('unknown line: {}'.format(str(line)))
 
-    def update(self, args = ['--stdout', '--show-progress']) -> "yield output":
+    def update(self, args = ['--stdout', '--show-progress']) -> str:
         """ Method used to perform a ClamAV database update.
         It yield\'s ClamAV Update output.
 
@@ -169,7 +169,7 @@ class ClamAV():
             show update progress (--show-progress).
         """
 
-        self.ClamLog.info('update: ClamAV Update started.')
+        self.ClamLog.info('ClamAV Update started.')
         for line in self.__call_proc(self.__update, args=args):
             self.ClamLog.info(line.strip())
             yield line
@@ -189,30 +189,30 @@ class ClamAV():
         Available arguments might be found at ClamAV scan documentations or by using --help.
         """
 
-        self.ClamLog.debug('__scan: Scan started.')
+        self.ClamLog.debug('Scan started.')
         args = list(args)
 
         try: # Bandit report: 'subprocess call - check for execution of untrusted input.', see line 7.
             with subprocess.Popen([self.configuration["Scanner"]] + args, stdout=subprocess.PIPE) as scanp:
-                self.ClamLog.debug('__scan: Subprocess opened. (subprocess.Popen)')
+                self.ClamLog.debug('Subprocess opened. (subprocess.Popen)')
                 for line in iter(scanp.stdout.readline, b''):
                     self.clamav_queue.put(line)
         except MemoryError as memory_err:
-            self.ClamLog.critical('__scan: Failed to perform __scan. Probably not enough memory.')
-            self.ClamLog.debug('__scan: MemoryError arguments: {}'.format(str(memory_err.args)))
+            self.ClamLog.critical('Failed to perform __scan. Probably not enough memory.')
+            self.ClamLog.debug('MemoryError arguments: {}'.format(str(memory_err.args)))
             raise OSError('System may not perform scan, probably not enough memory.', memory_err.args)
         except OSError as os_err:
-            self.ClamLog.critical("""__scan: Failed to call for __scan. Probably, module subprocess.Popen 
+            self.ClamLog.critical("""Failed to call for __scan. Probably, module subprocess.Popen 
                                 received wrong bin\'s filename.""")
-            self.ClamLog.debug('__scan: OSError arguments: {}'.format(str(os_err.args)))
+            self.ClamLog.debug('OSError arguments: {}'.format(str(os_err.args)))
             raise ValueError('System may not perform scan, probably not system error raised.', os_err.args)
         except ValueError as value_err:
-            self.ClamLog.critical("""__scan: Failed to call for __scan. Probably, module subprocess.Popen 
+            self.ClamLog.critical("""Failed to call for __scan. Probably, module subprocess.Popen 
                                 called with invalid arguments.""")
-            self.ClamLog.debug('__scan: ValueError arguments: {}'.format(str(value_err.args)))
+            self.ClamLog.debug('ValueError arguments: {}'.format(str(value_err.args)))
             raise ValueError('Failed to spawn process, probably wrong internal arguments received.', value_err.args)
         else:
-            self.ClamLog.debug('__scan: Scan done.')
+            self.ClamLog.debug('Scan done.')
             return True
 
     def __update(self, *args) -> bool:
@@ -229,34 +229,34 @@ class ClamAV():
         Available arguments might be found at ClamAV update documentations or by using --help.
         """
 
-        self.ClamLog.debug('__update: Update in fact started.')
+        self.ClamLog.debug('Update in fact started.')
         args = list(args)
 
         try: # WARN: Bandit report: 'subprocess call - check for execution of untrusted input.', see line 7.
             with subprocess.Popen([self.configuration["Updater"]] + args, stdout=subprocess.PIPE) as updatep:
-                self.ClamLog.debug('__update: Subprocess opened. (subprocess.Popen)')
+                self.ClamLog.debug('Subprocess opened. (subprocess.Popen)')
                 for line in iter(updatep.stdout.readline, b''):
                     self.clamav_queue.put(line)
         except OSError as os_err:
-            self.ClamLog.critical("""__update: Failed to call for __update. Probably, module subprocess.Popen 
+            self.ClamLog.critical("""Failed to call for __update. Probably, module subprocess.Popen 
                                 received wrong bin\'s filename.""")
-            self.ClamLog.debug('__update: OSError arguments: {}'.format(str(os_err.args)))
+            self.ClamLog.debug('OSError arguments: {}'.format(str(os_err.args)))
             raise ValueError('Failed to spawn process, probably wrong bin\'s filename received.', os_err.args)
         except ValueError as value_err:
-            self.ClamLog.critical("""__update: Failed to call for __update. Probably, module subprocess.Popen 
+            self.ClamLog.critical("""Failed to call for __update. Probably, module subprocess.Popen 
                                 called with invalid arguments.""")
-            self.ClamLog.debug('__update: ValueError arguments: {}'.format(str(value_err.args)))
+            self.ClamLog.debug('ValueError arguments: {}'.format(str(value_err.args)))
             raise ValueError('Failed to spawn process, probably wrong internal arguments received.', value_err.args)
         except MemoryError as memory_err:
-            self.ClamLog.critical('__update: Failed to perform __update. Probably not enough memory.')
-            self.ClamLog.debug('__update: MemoryError arguments: {}'.format(str(memory_err.args)))
+            self.ClamLog.critical('Failed to perform __update. Probably not enough memory.')
+            self.ClamLog.debug('MemoryError arguments: {}'.format(str(memory_err.args)))
             raise MemoryError('System may not perform update, probably not enough memory.', memory_err.args)
         else:
-            self.ClamLog.debug('__update: Update done.')
+            self.ClamLog.debug('Update done.')
             return True
 
 
-    def __call_proc(self, work: 'function', args = None) -> "yield str":
+    def __call_proc(self, work: 'function', args = None) -> str:
         """ Initialize main work thread.
         It used to call for main working function (like scan or update).
 
@@ -266,30 +266,30 @@ class ClamAV():
         Yield work\'s function output.
         """
 
-        self.ClamLog.debug('__call_proc: Initialize work thread.')
+        self.ClamLog.debug('Initialize work thread.')
         if args is None:
-            self.ClamLog.debug('__call_proc: No arguments received.')
+            self.ClamLog.debug('No arguments received.')
             args = list()
 
-        self.ClamLog.debug('__call_proc: Creating thread.')
+        self.ClamLog.debug('Creating thread.')
         work_thread = threading.Thread(target = work, args = args, daemon = True)
-        self.ClamLog.debug('__call_proc: Starting thread.')
+        self.ClamLog.debug('Starting thread.')
         work_thread.start()
-        self.ClamLog.debug('__call_proc: Work thread Initialized.')
+        self.ClamLog.debug('Work thread Initialized.')
 
-        self.ClamLog.debug('__call_proc: Looking for output.')
+        self.ClamLog.debug('Looking for output.')
         while work_thread.is_alive():
             try:
                 line = self.clamav_queue.get_nowait()
                 line = line.decode('utf-8').strip()
-                self.ClamLog.debug('__call_proc: Output: {}'.format(line))
+                self.ClamLog.debug('Output: {}'.format(line))
             except queue.Empty:
                 pass
             else:
-                self.ClamLog.debug('__call_proc: Yield {}.'.format(line))
+                self.ClamLog.debug('Yield {}.'.format(line))
                 yield line
         else:
-            self.ClamLog.debug('__call_proc: Process ended without any output.')
+            self.ClamLog.debug('Process ended without any output.')
             return None
 
     def __resolve_path(self, path: str) -> str:
@@ -298,23 +298,23 @@ class ClamAV():
         Used to resolve symlinks and return absolute path.
         """
 
-        self.ClamLog.info('__resolve_path: Starting path resolver.')
-        self.ClamLog.debug('__resolve_path: Resolving {}...'.format(path))
+        self.ClamLog.info('Starting path resolver.')
+        self.ClamLog.debug('Resolving {}...'.format(path))
 
         try:
             path = pathlib.Path(path)
         except NotImplementedError as path_resolve_bad_python_err:
-            self.ClamLog.warning('__resolve_path: Failed to resolve {}.'.format(path))
-            self.ClamLog.info('__resolve_path: TIP: Probably OS is not supported.')
-            self.ClamLog.debug('__resolve_path: NotImplementedError occurred, log: {}'.format(str(path_resolve_bad_python_err.args)))
-            self.ClamLog.info('__resolve_path: Trying to run anyway...')
+            self.ClamLog.warning('Failed to resolve {}.'.format(path))
+            self.ClamLog.info('TIP: Probably OS is not supported.')
+            self.ClamLog.debug('NotImplementedError occurred, log: {}'.format(str(path_resolve_bad_python_err.args)))
+            self.ClamLog.info('Trying to run anyway...')
             return str(path)
         except TypeError as path_resolve_bad_os_err:
-            self.ClamLog.warning('__resolve_path: Failed to resolve {}.'.format(path))
-            self.ClamLog.info('__resolve_path: TIP: Probably wrong OS type detected.')
-            self.ClamLog.debug('__resolve_path: TypeError occurred, log: {}'.format(str(path_resolve_bad_os_err.args)))
-            self.ClamLog.info('__resolve_path: Trying to run anyway...')
+            self.ClamLog.warning('Failed to resolve {}.'.format(path))
+            self.ClamLog.info('TIP: Probably wrong OS type detected.')
+            self.ClamLog.debug('TypeError occurred, log: {}'.format(str(path_resolve_bad_os_err.args)))
+            self.ClamLog.info('Trying to run anyway...')
             return str(path)
         finally:
-            self.ClamLog.debug('__resolve_path: Path converted. Return {}'.format(str(path.expanduser().resolve())))
+            self.ClamLog.debug('Path converted. Return {}'.format(str(path.expanduser().resolve())))
             return str(path.expanduser().resolve())
