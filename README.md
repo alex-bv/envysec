@@ -90,9 +90,9 @@ Briefly, how does it work:
             |                 |        call with
  subprocess |                 |      received from
     popen() |                 |        queue args
-            |     put in      |      
-         ClamAV ----------> queue     
- 
+            |     put in      |
+         ClamAV ----------> queue
+
              The main principal work scheme (1 - begin)
 </pre>
 
@@ -130,13 +130,13 @@ All possible error codes are listed in Metadefender Errors.
 
 Metadefender code | Category | HTTP code
 ----------------- | -------- | ----------
- | **Generic** | 
+**1** | **Generic** | 
 400000 | Generic error | 400
 400001 | The caching strategy is not recognized | 400
 400002 | The limit strategy is not supported | 400
 400003 | The limit type is not supported | 400
 400004 | The query parameters are not valid | 400
- | **Payload Validation** | 
+**2** | **Payload Validation** | 
 400020 | Header is not valid | 400
 400021 | Body parsing failed | 400
 400022 | Payload validation has failed | 400
@@ -146,7 +146,7 @@ Metadefender code | Category | HTTP code
 400026 | Hash in the URL doesn't match the hash value in the body | 400
 400027 | Offset should be a positive integer | 400
 400028 | "Limit should be a positive integer less than 10.000" | 400
- | **Routing Errors** | 
+**3** | **Routing Errors** | 
 400040 | The requested path is not valid | 400
 400041 | The version is required | 400
 400042 | The version does not exist | 400
@@ -155,7 +155,7 @@ Metadefender code | Category | HTTP code
 400045 | The route was not properly set up | 400
 400046 | The requested route does not exist | 400
 400047 | This route is available only on development environments | 400
- | **Hash Errors** |   
+**4** | **Hash Errors** |   
 400060 | The `hash` field in the body is required | 400
 400061 | The `hash` field is not an array | 400
 400062 | The `hash` field is empty | 400
@@ -164,20 +164,20 @@ Metadefender code | Category | HTTP code
 400065 | The header `include_scan_details` has to be either 0 or 1 | 400
 400066 | The header `file_metadata` has to be either 0 or 1 | 400
 400067 | Hash update failed | 400
- | **Top Hash Errors** | 
+**5** | **Top Hash Errors** | 
 400080 | The amount must be lower than 10.000 | 400
 400081 | Type must be one of `clean` / `infected` | 400
 400082 | Period must be one of `day` / `week` / `month` | 400
 400083 | Threshold must be one of 1, 2, 3, 4, 5, 6  | 400
- |**appinfo** | 
+**6** |**appinfo** | 
 400100 | The fields `os_info.device_identity` are required | 400
- | **Top Detection** | 
+**7** | **Top Detection** | 
 400120 | The header `x-exclude-empty-file-id` has to be either 0 or 1 | 400
 400121 | The header `x-exclude-data` has to be either 0 or 1 | 400
 400122 | The header `x-threshold` must be one of 3, 4, 5, 6  | 400
 400123 | Packages should be one of m1, m4, m8, m12, m16, m20, m30 | 400
 400124 | Number of hashes must be one of 10, 100, 1.000, 10.000 | 400
- | **Upload Errors** | 
+**8** | **Upload Errors** | 
 400140 | The file upload has failed | 400
 400141 | The header `x-force-scan` has to be either 0 or 1 | 400
 400142 | The header `x-sample-sharing` has to be either 0 or 1 | 400
@@ -193,7 +193,7 @@ Metadefender code | Category | HTTP code
 400152 | The `file_ids` field is empty | 400
 400153 | Exceeded maximum allowed | 400
 400154 | Exceeded maximum allowed files in archive | 400
- | **API Key Info** | 
+**9** | **API Key Info** | 
 400160 | The API key you are trying to add already exists | 400
 400161 | The API key could not be removed | 400
 400162 | The API key was not updated | 400
@@ -203,7 +203,7 @@ Metadefender code | Category | HTTP code
 400166 | Please provide a valid email address | 400
 400167 | Please provide a valid body | 400
 400168 | Please choose another nickname, as this one contains profanities | 400
- | **IP Scan** | 
+**10** | **IP Scan** | 
 400180 | Invalid format of input. Provide IPv4 or IPv6. | 400
 400181 | The `ip_addresses` field in body is required | 400
 400182 | The `ip_addresses` field is not an array | 400
@@ -212,20 +212,20 @@ Metadefender code | Category | HTTP code
 400185 | The address is not a routable IP | 400
 400186 | No response | 400
 400187 | Invalid response | 400
- | **Stats** | 
+**11** | **Stats** | 
 400200 | The number of days requested must be a positive integer | 400
 400201 | Invalid objectId | 400
 400202 | Invalid date | 400
 400203 | Invalid outbreak report filter | 400
- | **Status** | 
-400210 | Parameter type must be one of `hashLookup` / `uploadFile` / `ipScan`         400
- | **Salesforce** | 
+**12** | **Status** | 
+400210 | Parameter type must be one of `hashLookup` / `uploadFile` / `ipScan` | 400
+**13** | **Salesforce** | 
 400250 | Salesforce connectivity error | 401
 400251 | There is no record | 401
- | **Feed** | 
+**14** | **Feed** | 
 400260 | You are allowed to query up to 30 days in the past | 400
 400261 | Invalid category. Please use: A, D, E, G, M, N, O, P, T, Z | 400
- | **Authentication** | 
+**15** | **Authentication** | 
 401000 | Authentication has failed | 401
 401001 | Authentication strategy is invalid | 401
 401002 | Authentication strategy is not implemented | 401
@@ -233,12 +233,12 @@ Metadefender code | Category | HTTP code
 401004 | Authentication token has expired | 401
 401005 | Authentication token is invalid | 401
 401006 | Invalid API key | 401
- | **Forbidden** | 
+**16** | **Forbidden** | 
 403000 | Access forbidden | 403
 403001 | Requested resource doesn't match your API key | 403
 403002 | Your IP is blocked because of abuse | 403
 403003 | Insufficient Privileges | 403
- | **Not Found** | 
+**17** | **Not Found** | 
 404000 | Endpoint was not found | 404
 404001 | Entity was not found | 404
 404002 | There are no entries found | 404
@@ -248,15 +248,15 @@ Metadefender code | Category | HTTP code
 404006 | There is no data for the selected date | 404
 404007 | Requested file ID does not exist in our records | 404
 404008 | The API key was not found | 404
- | **Payload Acceptance** | 
+**18** | **Payload Acceptance** | 
 406000 | Content-Type header and payload has to be JSON | 406
 406001 | Payload empty | 406
- | **Request Timeout** | 
+**19** | **Request Timeout** | 
 408000 | Request timeout. It has reached the 60 seconds limit. | 408
- | **Rate Limiting** | 
+**20** | **Rate Limiting** | 
 429000 | API key limit exceeded; retry after the limit is reset | 429
 429001 | Your request has been throttled; maximum 10 requests per minute per user | 429
 429002 | Too many connections; try again later | 429
- | **Service Unavailable** | 
+**21** | **Service Unavailable** | 
 503000 | External service is not reachable | 503
 503001 | External service is not reachable | 503
