@@ -84,7 +84,7 @@ class ConsoleInterface():
         self.envyCLI_Log.debug('Starting IP scan.')
         self.envyCLI_Log.debug('received targets: {}'.format(targets))
 
-        targets = self.__targets_parse(targets) # Shlex targets (!)
+        targets = self.__targets_parse(targets)
 
         self.envyCLI_Log.debug('starting ip_scanner...')
         for target in targets:
@@ -124,7 +124,6 @@ class ConsoleInterface():
         self.envyCLI_Log.info('Scan complete.')
         return True
 
-
     def url_scanner(self, targets: list) -> bool:
         """ Scan URL address using Metadefender API.
 
@@ -137,7 +136,7 @@ class ConsoleInterface():
         self.envyCLI_Log.debug('Starting URL scan.')
         self.envyCLI_Log.debug('Received targets: {}'.format(targets))
 
-        targets = self.__targets_parse(targets) # Shlex targets (!)
+        targets = self.__targets_parse(targets)
 
         self.envyCLI_Log.debug('Starting url_scanner...')
         for target in targets:
@@ -178,7 +177,7 @@ class ConsoleInterface():
         self.envyCLI_Log.debug('Starting domain scan.')
         self.envyCLI_Log.debug('Received targets: {}'.format(targets))
 
-        targets = self.__targets_parse(targets) # Shlex targets (!)
+        targets = self.__targets_parse(targets)
 
         self.envyCLI_Log.debug('Starting domain_scanner...')
         for target in targets:
@@ -255,19 +254,19 @@ class ConsoleInterface():
 
         self.envyCLI_Log.debug('Getting exclude list...')
         if exclude is None:
-            exclude = self.exclude_db.get_exception()
+            exclude = self.exclude_db.get_exceptions()
         self.envyCLI_Log.debug('exclude list: {}'.format(exclude))
 
         print('Scanning...')
 
         self.envyCLI_Log.debug('Parsing targets...')
-        targets = self.__targets_parse(targets) # Shlex targets (!)
+        targets = self.__targets_parse(targets)
         self.envyCLI_Log.debug('Targets parsed.')
 
         self.envyCLI_Log.debug('Checking exclude list.')
         if exclude != []: # Check if exclude is defined. Used to prevent empty arg.
             self.envyCLI_Log.debug('Getting exclude list.')
-            exclude = self.exclude_db.get_exception()
+            exclude = self.exclude_db.get_exceptions()
             self.envyCLI_Log.debug('Exclude list received.')
 
         self.envyCLI_Log.debug('Checking targets existence...')
@@ -292,19 +291,11 @@ class ConsoleInterface():
                 i = i.split(': ')[0]
 
                 self.envyCLI_Log.info('{} considered suspicious, starting Metadefender scan.'.format(i))
-                self.envyCLI_Log.debug('Starting scanning by hash...')
-                meta_response = list(self.metadef.scan_hash(i))
-                if False in meta_response:
-                    self.envyCLI_Log.debug('Hash scan failed, sending file...')
-                    scan_result, scan_details = self.metadef.scan_file(i)
-                    self.envyCLI_Log.debug('Response received, parsing...')
-                    self.__parse_metadefender_scan(i, scan_result, scan_details)
-                    self.envyCLI_Log.debug('Parsing complete.')
-                else:
-                    self.envyCLI_Log.debug('Hash scan succeed.')
-                    self.envyCLI_Log.debug('Response received, parsing...')
-                    self.__parse_metadefender_scan(i, meta_response[0], meta_response[1])
-                    self.envyCLI_Log.debug('Parsing complete.')
+                self.envyCLI_Log.debug('Scanning...')
+                meta_response = list(self.metadef.scan_hash(i, True))
+                self.envyCLI_Log.debug('Response received, parsing...')
+                self.__parse_metadefender_scan(i, meta_response[0], meta_response[1])
+                self.envyCLI_Log.debug('Parsing complete.')
             elif i is None:
                 self.envyCLI_Log.debug('Process ended without output.')
                 self.envyCLI_Log.info('Process ended without output.')
@@ -373,7 +364,7 @@ class ConsoleInterface():
         """
 
         self.envyCLI_Log.debug('Parsing targets...')
-        targets = self.__targets_parse(targets) # Shlex targets (!)
+        targets = [os.path.abspath(target) for target in targets]
         self.envyCLI_Log.debug('Targets parsed.')
 
         self.envyCLI_Log.debug('Adding exception...')
@@ -394,7 +385,7 @@ class ConsoleInterface():
         """
 
         self.envyCLI_Log.debug('Checking targets...')
-        targets = self.__targets_parse(targets) # Shlex targets (!)
+        targets = [os.path.abspath(target) for target in targets]
         self.envyCLI_Log.debug('Targets removed.')
 
         self.envyCLI_Log.debug('Removing exception...')
@@ -406,16 +397,22 @@ class ConsoleInterface():
 
         return True
 
-    def get_exclude(self) -> bool:
+    def get_exclude(self, get_date: bool = True) -> bool:
         """ Print exclude list.
+        
+        'get_date' - flag to print date exclusion was added at.
 
         Return True, if function had been complete successfully.
         """
 
         self.envyCLI_Log.debug('Getting exclude list...')
-        for exception in self.exclude_db.get_exception():
+        exceptions = self.exclude_db.get_exceptions()
+        for exception in exceptions:
             self.envyCLI_Log.debug('{} in exclude list;'.format(exception))
-            print(exception)
+            if get_date is True:
+                print('{}: {}'.format(exception, exceptions[exception]))
+            else:
+                print(exception)
 
         self.envyCLI_Log.debug('finished getting exceptions.')
         return True
