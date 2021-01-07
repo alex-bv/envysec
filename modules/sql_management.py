@@ -384,14 +384,10 @@ class ExcludeDB(DBManager):
             self.ExcludeDB.debug('Database management complete.')
             return True
 
-    def get_exceptions(self) -> list:
-        """ Get all items in exclude list.
+    def get_exceptions(self) -> dict:
+        """ Get all items from exclude database.
 
         Used to connect and get list from 'exclude.db'.
-
-        Executing 'for ... in ... SELECT * FROM Exclusion' will return tuple;
-        By design, only 1 object in tuple will be counted, other will be skipped.
-        Yielding first item in a tuple 'item[0]'.
 
         Return None if database error occurred.
         """
